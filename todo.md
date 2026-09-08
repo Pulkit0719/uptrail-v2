@@ -1,0 +1,23 @@
+# Project TODO
+
+- [x] Establish the Uptrail premium visual system with responsive design tokens, typography, accessibility states, and motion preferences.
+- [x] Build a public landing page with hero, global career value proposition, feature highlights, trustworthy non-user-generated product statistics, and sign-in CTA.
+- [x] Implement a concise, skippable onboarding flow for role, target career, skills, experience level, country or region, and work preferences.
+- [x] Define country-aware career, education, qualification, skill, roadmap, and opportunity data models without India-only assumptions.
+- [x] Support India, United States, and United Kingdom qualification terminology through configurable country profile data.
+- [x] Build the authenticated learner shell with accessible desktop sidebar and mobile navigation for Dashboard, Career GPS, Explore Careers, Skills, Roadmap, Projects, Opportunities, AI Mentor, and Profile.
+- [x] Implement the personalized learner dashboard with progress summary, readiness, active roadmap, skill confidence, and upcoming milestones.
+- [x] Implement Career GPS with explainable career matches, role descriptions, salary context, demand signals, required skills, and destination-aware path visualization.
+- [x] Implement a career explorer spanning Technology, Product and Business, Design and Creative, Marketing, and Finance career families.
+- [x] Implement a weighted skill gap analyzer that surfaces verified confidence levels, readiness, dependencies, priorities, and the recommended next skill.
+- [x] Implement a personalized roadmap experience with milestones, resources, estimated durations, completion controls, and route recalculation context.
+- [x] Implement a project portfolio workspace with project prompts, competency tags, and progress indicators.
+- [x] Integrate the AI Career Mentor through a secure server-side LLM procedure for profile-aware career Q&A, roadmap explanations, skill-gap guidance, and contextual next steps.
+- [x] Implement a live opportunity provider abstraction and live-data filters for career path, region, and skill level; provide a resilient unavailable-provider state when credentials or data access are not configured.
+- [x] Implement an editable profile containing skills, experience, goals, achievements, country context, and progress history.
+- [x] Write or update Vitest coverage for core career reasoning, gateway procedures, and UI-derived helper logic.
+- [x] Run type checking and tests, inspect responsive visual output, address surfaced defects, and create a delivery checkpoint.
+- [x] Use permitted public opportunity-provider routes with clear source attribution and provider-status messaging, without requesting user credentials for the initial release.
+- [x] Define a normalized opportunity model with provider attribution, listing type, country or region, career mapping, skill level, freshness, and provider availability status.
+- [x] Persist editable learner skills, achievements, and completed roadmap milestones so profile context remains accurate across sessions.
+- [x] Add an explicit career-path filter to the live opportunities API and interface alongside free-text, region, and skill-level filters.

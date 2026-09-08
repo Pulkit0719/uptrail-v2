@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1787045175561,
+      "tag": "0000_flat_daimon_hellstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1787048773512,
+      "tag": "0001_organic_silver_surfer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787048796406,
+      "tag": "0002_fat_arclight",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1787049668443,
+      "tag": "0003_sticky_sway",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1787049851404,
+      "tag": "0004_same_killraven",
+      "breakpoints": true
+    }
+  ]
+}
