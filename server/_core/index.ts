@@ -3,11 +3,14 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { issueCsrfToken } from "./auth";
+import { ENV } from "./env";
+import { getDb } from "../db";
+import { sql } from "drizzle-orm";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -31,11 +34,39 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.set("trust proxy", ENV.trustProxy ? 1 : false);
+  app.disable("x-powered-by");
+  app.use((_req, res, next) => {
+    res.set({
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
+    });
+    next();
+  });
+  app.use(express.json({ limit: "2mb" }));
+  app.use(express.urlencoded({ limit: "2mb", extended: true }));
+  app.get("/healthz", async (_req, res) => {
+    try {
+      const db = await getDb();
+      if (!db) return res.status(503).json({ ok: false, database: "not configured" });
+      await db.execute(sql`SELECT 1`);
+      return res.json({ ok: true });
+    } catch {
+      return res.status(503).json({ ok: false, database: "unavailable" });
+    }
+  });
   registerStorageProxy(app);
-  registerOAuthRoutes(app);
+  app.get("/api/auth/csrf", async (req, res) => {
+    try {
+      await issueCsrfToken(req, res);
+      res.set("Cache-Control", "no-store").status(204).end();
+    } catch (error) {
+      console.error("[Auth] CSRF token issue failed", error);
+      res.status(503).json({ error: "Authentication service unavailable" });
+    }
+  });
   // tRPC API
   app.use(
     "/api/trpc",
@@ -45,16 +76,17 @@ async function startServer() {
     })
   );
   // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
+  if (process.argv.includes("--dev")) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const development = process.argv.includes("--dev");
+  const port = development ? await findAvailablePort(preferredPort) : preferredPort;
 
-  if (port !== preferredPort) {
+  if (development && port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 

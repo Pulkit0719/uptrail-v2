@@ -1,4 +1,4 @@
-import { ENV } from "./env";
+import { getAIProvider } from "./aiProvider";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -212,17 +212,6 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
-
-const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-};
-
 const normalizeResponseFormat = ({
   responseFormat,
   response_format,
@@ -268,80 +257,7 @@ const normalizeResponseFormat = ({
   };
 };
 
-const RETRY_MAX_RETRIES = 4;
-const RETRY_BASE_DELAY_MS = 500;
-const RETRY_MAX_DELAY_MS = 30_000;
-
-type FetchInit = NonNullable<Parameters<typeof fetch>[1]>;
-
-const sleep = (ms: number) =>
-  new Promise<void>(resolve => setTimeout(resolve, ms));
-
-const parseRetryAfter = (value: string | null): number | undefined => {
-  if (!value) return undefined;
-  const seconds = Number(value);
-  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
-  const at = Date.parse(value);
-  return Number.isNaN(at) ? undefined : Math.max(0, at - Date.now());
-};
-
-// Equal-jitter exponential backoff. The cap/2 floor guarantees a minimum
-// delay so a misbehaving caller loop slows down instead of hammering the
-// upstream while it keeps returning errors.
-const computeBackoffDelay = (
-  attempt: number,
-  retryAfterMs?: number
-): number => {
-  const cap = Math.min(RETRY_BASE_DELAY_MS * 2 ** attempt, RETRY_MAX_DELAY_MS);
-  const jittered = cap / 2 + Math.random() * (cap / 2);
-  return Math.min(Math.max(jittered, retryAfterMs ?? 0), RETRY_MAX_DELAY_MS);
-};
-
-// Retries non-2xx responses and network errors with exponential backoff, then
-// returns the final Response so callers keep their existing error handling.
-const fetchWithBackoff = async (
-  url: string,
-  init: FetchInit
-): Promise<Response> => {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt <= RETRY_MAX_RETRIES; attempt++) {
-    try {
-      const response = await fetch(url, init);
-      if (response.ok || attempt === RETRY_MAX_RETRIES) {
-        return response;
-      }
-
-      const retryAfterMs = parseRetryAfter(
-        response.headers.get("retry-after")
-      );
-      try {
-        await response.body?.cancel();
-      } catch {
-        // Body already settled; nothing to clean up.
-      }
-      console.warn(
-        `LLM request retry ${attempt + 1}/${RETRY_MAX_RETRIES} after status ${response.status}`
-      );
-      await sleep(computeBackoffDelay(attempt, retryAfterMs));
-    } catch (error) {
-      lastError = error;
-      if (attempt === RETRY_MAX_RETRIES) throw error;
-      console.warn(
-        `LLM request retry ${attempt + 1}/${RETRY_MAX_RETRIES} after network error`
-      );
-      await sleep(computeBackoffDelay(attempt));
-    }
-  }
-
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("LLM request failed after exhausting retries");
-};
-
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
-  assertApiKey();
-
   const {
     messages,
     tools,
@@ -362,9 +278,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     messages: messages.map(normalizeMessage),
   };
 
-  if (model) {
-    payload.model = model;
-  }
+  payload.model = model ?? getAIProvider().model("chat");
 
   if (tools && tools.length > 0) {
     payload.tools = tools;
@@ -401,11 +315,10 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetchWithBackoff(resolveApiUrl(), {
+  const response = await getAIProvider().request("chat/completions", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
     },
     body: JSON.stringify(payload),
   });
@@ -433,15 +346,7 @@ export type ModelsResponse = {
 };
 
 export async function listLLMModels(): Promise<ModelsResponse> {
-  assertApiKey();
-
-  const url = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/models`
-    : "https://forge.manus.im/v1/models";
-
-  const response = await fetchWithBackoff(url, {
-    headers: { authorization: `Bearer ${ENV.forgeApiKey}` },
-  });
+  const response = await getAIProvider().request("models");
 
   if (!response.ok) {
     const errorText = await response.text();

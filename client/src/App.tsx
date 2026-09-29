@@ -12,11 +12,13 @@ import { EnhancedProjectsPage, EnhancedRoadmapPage } from "./pages/ProgressPages
 import PersistentRoadmapPage from "./pages/PersistentRoadmapPage";
 import { CareerExplorerPage, CareerGPSPage, DashboardPage, MentorPage, OpportunitiesPage, ProfilePage, ProjectsPage, RoadmapPage, SkillsPage } from "./pages/WorkspacePages";
 import NotFound from "@/pages/NotFound";
+import LoginPage from "./pages/Login";
 import { Route, Switch } from "wouter";
 
 function Router() {
   return <Switch>
     <Route path="/" component={Home} />
+    <Route path="/login" component={LoginPage} />
     <Route path="/onboarding" component={Onboarding} />
     <Route path="/dashboard" component={DashboardPage} />
     <Route path="/gps" component={CareerGPSPage} />

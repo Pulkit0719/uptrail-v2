@@ -1,97 +1,79 @@
-// Preconfigured storage helpers for Manus WebDev templates
-// Uploads via Forge Server presigned URL to S3 (PUT direct).
-// Downloads return /manus-storage/{key} paths served via 307 redirect.
-
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ENV } from "./_core/env";
 
-function getForgeConfig() {
-  const forgeUrl = ENV.forgeApiUrl;
-  const forgeKey = ENV.forgeApiKey;
+const MAX_SERVER_UPLOAD_BYTES = 25 * 1024 * 1024;
+let client: S3Client | undefined;
 
-  if (!forgeUrl || !forgeKey) {
-    throw new Error(
-      "Storage config missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY",
-    );
+function requireBucket() {
+  if (!ENV.s3Bucket) throw new Error("S3_BUCKET is not configured");
+  if ((ENV.s3AccessKeyId && !ENV.s3SecretAccessKey) || (!ENV.s3AccessKeyId && ENV.s3SecretAccessKey)) {
+    throw new Error("Configure both S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY, or neither when using an IAM role");
   }
-
-  return { forgeUrl: forgeUrl.replace(/\/+$/, ""), forgeKey };
+  return ENV.s3Bucket;
 }
 
-function normalizeKey(relKey: string): string {
-  return relKey.replace(/^\/+/, "");
-}
-
-function appendHashSuffix(relKey: string): string {
-  const hash = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-  const lastDot = relKey.lastIndexOf(".");
-  if (lastDot === -1) return `${relKey}_${hash}`;
-  return `${relKey.slice(0, lastDot)}_${hash}${relKey.slice(lastDot)}`;
-}
-
-export async function storagePut(
-  relKey: string,
-  data: Buffer | Uint8Array | string,
-  contentType = "application/octet-stream",
-): Promise<{ key: string; url: string }> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
-  const key = appendHashSuffix(normalizeKey(relKey));
-
-  // 1. Get presigned PUT URL from Forge
-  const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
-  presignUrl.searchParams.set("path", key);
-
-  const presignResp = await fetch(presignUrl, {
-    headers: { Authorization: `Bearer ${forgeKey}` },
-  });
-
-  if (!presignResp.ok) {
-    const msg = await presignResp.text().catch(() => presignResp.statusText);
-    throw new Error(`Storage presign failed (${presignResp.status}): ${msg}`);
+function getClient() {
+  if (!client) {
+    client = new S3Client({
+      region: ENV.s3Region,
+      ...(ENV.s3Endpoint ? { endpoint: ENV.s3Endpoint } : {}),
+      forcePathStyle: ENV.s3ForcePathStyle,
+      ...(ENV.s3AccessKeyId ? { credentials: { accessKeyId: ENV.s3AccessKeyId, secretAccessKey: ENV.s3SecretAccessKey } } : {}),
+    });
   }
-
-  const { url: s3Url } = (await presignResp.json()) as { url: string };
-  if (!s3Url) throw new Error("Forge returned empty presign URL");
-
-  // 2. PUT file directly to S3
-  const blob =
-    typeof data === "string"
-      ? new Blob([data], { type: contentType })
-      : new Blob([data as any], { type: contentType });
-
-  const uploadResp = await fetch(s3Url, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob,
-  });
-
-  if (!uploadResp.ok) {
-    throw new Error(`Storage upload to S3 failed (${uploadResp.status})`);
-  }
-
-  return { key, url: `/manus-storage/${key}` };
+  return client;
 }
 
-export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {
-  const key = normalizeKey(relKey);
-  return { key, url: `/manus-storage/${key}` };
+export function normalizeStorageKey(value: string) {
+  const key = value.replace(/^\/+/, "");
+  if (!key || key.length > 512 || key.includes("..") || key.includes("\\") || !/^[A-Za-z0-9._/-]+$/.test(key)) {
+    throw new Error("Invalid storage key");
+  }
+  return key;
 }
 
-export async function storageGetSignedUrl(relKey: string): Promise<string> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
-  const key = normalizeKey(relKey);
+function uniqueKey(relKey: string) {
+  const key = normalizeStorageKey(relKey);
+  const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+  const dot = key.lastIndexOf(".");
+  return dot > key.lastIndexOf("/") ? `${key.slice(0, dot)}_${suffix}${key.slice(dot)}` : `${key}_${suffix}`;
+}
 
-  const getUrl = new URL("v1/storage/presign/get", forgeUrl + "/");
-  getUrl.searchParams.set("path", key);
+function appUrl(key: string) {
+  return `/storage/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
 
-  const resp = await fetch(getUrl, {
-    headers: { Authorization: `Bearer ${forgeKey}` },
-  });
+export async function storagePut(relKey: string, data: Buffer | Uint8Array | string, contentType = "application/octet-stream") {
+  const body = typeof data === "string" ? Buffer.from(data) : data;
+  if (body.byteLength > MAX_SERVER_UPLOAD_BYTES) throw new Error("Upload exceeds the 25 MB server limit");
+  const key = uniqueKey(relKey);
+  await getClient().send(new PutObjectCommand({ Bucket: requireBucket(), Key: key, Body: body, ContentType: contentType }));
+  return { key, url: appUrl(key) };
+}
 
-  if (!resp.ok) {
-    const msg = await resp.text().catch(() => resp.statusText);
-    throw new Error(`Storage signed URL failed (${resp.status}): ${msg}`);
+export async function storageGet(relKey: string) {
+  const key = normalizeStorageKey(relKey);
+  return { key, url: appUrl(key) };
+}
+
+export async function storageGetSignedUrl(relKey: string) {
+  const key = normalizeStorageKey(relKey);
+  return getSignedUrl(getClient(), new GetObjectCommand({ Bucket: requireBucket(), Key: key }), { expiresIn: 300 });
+}
+
+export async function storageRead(relKey: string) {
+  const key = normalizeStorageKey(relKey);
+  const response = await getClient().send(new GetObjectCommand({ Bucket: requireBucket(), Key: key }));
+  if (!response.Body) throw new Error("Storage object has no body");
+  return { data: Buffer.from(await response.Body.transformToByteArray()), contentType: response.ContentType ?? "application/octet-stream" };
+}
+
+export async function storageCreateUploadUrl(relKey: string, contentType: string, contentLength: number) {
+  if (!Number.isInteger(contentLength) || contentLength < 1 || contentLength > MAX_SERVER_UPLOAD_BYTES) {
+    throw new Error("Upload length must be between 1 byte and 25 MB");
   }
-
-  const { url } = (await resp.json()) as { url: string };
-  return url;
+  const key = uniqueKey(relKey);
+  const command = new PutObjectCommand({ Bucket: requireBucket(), Key: key, ContentType: contentType, ContentLength: contentLength });
+  return { key, url: appUrl(key), uploadUrl: await getSignedUrl(getClient(), command, { expiresIn: 300 }) };
 }

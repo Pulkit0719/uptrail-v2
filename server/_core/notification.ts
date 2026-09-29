@@ -13,14 +13,13 @@ const trimValue = (value: string): string => value.trim();
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
-const buildEndpointUrl = (baseUrl: string): string => {
-  const normalizedBase = baseUrl.endsWith("/")
-    ? baseUrl
-    : `${baseUrl}/`;
-  return new URL(
-    "webdevtoken.v1.WebDevService/SendNotification",
-    normalizedBase
-  ).toString();
+const buildEndpointUrl = (value: string): string => {
+  const url = new URL(value);
+  if (ENV.isProduction && url.protocol !== "https:") {
+    throw new Error("NOTIFICATION_WEBHOOK_URL must use HTTPS in production");
+  }
+  if (!new Set(["http:", "https:"]).has(url.protocol)) throw new Error("Invalid notification webhook protocol");
+  return url.toString();
 };
 
 const validatePayload = (input: NotificationPayload): NotificationPayload => {
@@ -58,7 +57,7 @@ const validatePayload = (input: NotificationPayload): NotificationPayload => {
 };
 
 /**
- * Dispatches a project-owner notification through the Manus Notification Service.
+ * Dispatches a project-owner notification through an independently configured webhook.
  * Returns `true` if the request was accepted, `false` when the upstream service
  * cannot be reached (callers can fall back to email/slack). Validation errors
  * bubble up as TRPC errors so callers can fix the payload.
@@ -68,32 +67,22 @@ export async function notifyOwner(
 ): Promise<boolean> {
   const { title, content } = validatePayload(payload);
 
-  if (!ENV.forgeApiUrl) {
+  if (!ENV.notificationWebhookUrl) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service URL is not configured.",
+      message: "NOTIFICATION_WEBHOOK_URL is not configured.",
     });
   }
 
-  if (!ENV.forgeApiKey) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service API key is not configured.",
-    });
-  }
-
-  const endpoint = buildEndpointUrl(ENV.forgeApiUrl);
+  const endpoint = buildEndpointUrl(ENV.notificationWebhookUrl);
 
   try {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        accept: "application/json",
-        authorization: `Bearer ${ENV.forgeApiKey}`,
         "content-type": "application/json",
-        "connect-protocol-version": "1",
       },
-      body: JSON.stringify({ title, content }),
+      body: JSON.stringify({ title, content, text: `${title}\n\n${content}` }),
     });
 
     if (!response.ok) {

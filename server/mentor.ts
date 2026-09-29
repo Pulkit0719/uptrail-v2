@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { learnerProfiles, learnerSkills } from "../drizzle/schema";
 import { careers, getCareer, type LearnerSkill } from "../shared/careerData";
 import { getDb } from "./db";
-import { invokeLLM, listLLMModels, type Message } from "./_core/llm";
+import { invokeLLM, type Message } from "./_core/llm";
 
 type MentorMessage = { role: "user" | "assistant"; content: string };
 
@@ -32,13 +32,11 @@ export function createMentorSystemPrompt(context: Awaited<ReturnType<typeof getM
 
 export async function mentorReply(userId: number, messages: MentorMessage[]): Promise<string> {
   const context = await getMentorContext(userId);
-  const { data: models } = await listLLMModels();
-  const model = models.find((item) => item.id === "gpt-5-mini")?.id ?? models.find((item) => item.id.startsWith("gpt-5"))?.id ?? models[0]?.id;
   const conversation: Message[] = [
     { role: "system", content: createMentorSystemPrompt(context) },
     ...messages.slice(-10).map((message) => ({ role: message.role, content: message.content.slice(0, 3000) })),
   ];
-  const response = await invokeLLM({ model, messages: conversation, maxTokens: 700 });
+  const response = await invokeLLM({ messages: conversation, maxTokens: 700 });
   const content = response.choices[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) throw new Error("AI mentor returned no usable content");
   return content;

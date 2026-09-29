@@ -1,4 +1,4 @@
-import { boolean, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { boolean, char, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -11,6 +11,33 @@ export const users = mysqlTable("users", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
+
+// Local credentials are deliberately separate from the legacy `users.email`
+// field. A matching email never silently merges an independently registered
+// account into an imported account.
+export const authCredentials = mysqlTable("authCredentials", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  emailNormalized: varchar("emailNormalized", { length: 320 }).notNull().unique(),
+  passwordHash: varchar("passwordHash", { length: 128 }).notNull(),
+  passwordSalt: varchar("passwordSalt", { length: 64 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const authSessions = mysqlTable("authSessions", {
+  id: char("id", { length: 36 }).primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: char("tokenHash", { length: 64 }).notNull().unique(),
+  csrfHash: char("csrfHash", { length: 64 }).notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  revokedAt: timestamp("revokedAt"),
+  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("authSessions_user_idx").on(table.userId),
+  index("authSessions_expiry_idx").on(table.expiresAt),
+]);
 
 export const learnerProfiles = mysqlTable("learnerProfiles", {
   id: int("id").autoincrement().primaryKey(),
@@ -67,6 +94,8 @@ export const learnerAchievements = mysqlTable("learnerAchievements", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+export type AuthCredential = typeof authCredentials.$inferSelect;
+export type AuthSession = typeof authSessions.$inferSelect;
 export type LearnerProfile = typeof learnerProfiles.$inferSelect;
 export type InsertLearnerProfile = typeof learnerProfiles.$inferInsert;
 export type LearnerSkillRecord = typeof learnerSkills.$inferSelect;

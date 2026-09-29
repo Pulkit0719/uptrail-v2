@@ -1,23 +1,40 @@
-import { COOKIE_NAME } from "@shared/const";
 import { z } from "zod";
 import { mentorReply } from "./mentor";
 import { getLiveOpportunities } from "./opportunities";
 import { addLearnerAchievement, getLearnerProfile, getLearnerSnapshot, markRoadmapMilestone, removeLearnerAchievement, replaceLearnerSkills, saveLearnerProfile } from "./profile";
-import { getSessionCookieOptions } from "./_core/cookies";
+import { authenticateLocalUser, clearAuthCookies, createSession, normalizeEmail, registerLocalUser, revokeSession } from "./_core/auth";
+import { enforceRateLimit } from "./_core/rateLimit";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { csrfProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+    register: csrfProcedure.input(z.object({
+      name: z.string().trim().min(2).max(120),
+      email: z.string().trim().email().max(320),
+      password: z.string().min(12).max(128),
+    })).mutation(async ({ ctx, input }) => {
+      enforceRateLimit(`register:${ctx.req.ip}:${normalizeEmail(input.email)}`, 5);
+      const user = await registerLocalUser(input);
+      await createSession(user.id, ctx.req, ctx.res);
+      return user;
+    }),
+    login: csrfProcedure.input(z.object({
+      email: z.string().trim().email().max(320),
+      password: z.string().min(1).max(128),
+    })).mutation(async ({ ctx, input }) => {
+      enforceRateLimit(`login:${ctx.req.ip}:${normalizeEmail(input.email)}`);
+      const user = await authenticateLocalUser(input.email, input.password);
+      await createSession(user.id, ctx.req, ctx.res);
+      return user;
+    }),
+    logout: csrfProcedure.mutation(async ({ ctx }) => {
+      await revokeSession(ctx.sessionId);
+      clearAuthCookies(ctx.req, ctx.res);
+      return { success: true } as const;
     }),
   }),
   mentor: router({

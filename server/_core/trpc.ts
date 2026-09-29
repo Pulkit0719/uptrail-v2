@@ -10,11 +10,30 @@ const t = initTRPC.context<TrpcContext>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
+const requireCsrf = t.middleware(({ ctx, next }) => {
+  if (!ctx.csrfValid) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Invalid CSRF token." });
+  }
+  return next({ ctx });
+});
+
+const requireAnonymousCsrf = t.middleware(({ ctx, next }) => {
+  if (!ctx.anonymousCsrfValid) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Invalid CSRF token." });
+  }
+  return next({ ctx });
+});
+
+export const csrfProcedure = t.procedure.use(requireAnonymousCsrf);
+
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
 
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+  }
+  if (!ctx.csrfValid) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Invalid CSRF token." });
   }
 
   return next({
@@ -27,7 +46,7 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
-export const adminProcedure = t.procedure.use(
+export const adminProcedure = t.procedure.use(requireCsrf).use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
