@@ -13,9 +13,8 @@ Uptrail is a React/Vite career-navigation client backed by Express, tRPC, Drizzl
 ## Windows / VS Code setup
 
 ```powershell
-corepack enable
-Copy-Item .env.example .env
-pnpm install --frozen-lockfile
+./scripts/setup-windows.ps1
+# Review .env, then:
 pnpm db:migrate
 pnpm dev
 ```
@@ -56,21 +55,43 @@ Remove-Item Env:LOCAL_AUTH_PASSWORD, Env:LOCAL_AUTH_EMAIL, Env:LEGACY_USER_OPEN_
 
 The command refuses implicit email matching, conflicting credentials, or replacement of an existing local identity. After the first account exists, set `OWNER_USER_ID` to its numeric database ID and restart to grant that exact account the admin role.
 
+To look up the numeric ID without changing authorization:
+
+```powershell
+$env:LOCAL_AUTH_EMAIL = "person@example.com"
+pnpm auth:find-user-id
+Remove-Item Env:LOCAL_AUTH_EMAIL
+```
+
+Password recovery uses a single-use, time-limited reset token and revokes all existing sessions after a successful reset. Configure `EMAIL_PROVIDER_URL`, `EMAIL_PROVIDER_API_KEY`, and `EMAIL_FROM` together. The provider endpoint receives `{from,to,subject,text,html}` JSON with a Bearer token. Requests always return the same public response whether the account exists or not.
+
 ## Quality commands
 
 ```powershell
 pnpm check
 pnpm test
 pnpm build
+pnpm audit --audit-level high
 ```
 
 Generate schema changes with `pnpm db:generate`, review the SQL, back up the target database, and only then run `pnpm db:migrate`.
 
 ## Configuration
 
-All supported variables and safe placeholders are in `.env.example`. Browser bundles receive no provider or storage secrets. `TRUST_PROXY=true` is required only when a trusted reverse proxy terminates HTTPS immediately in front of the app.
+All supported variables and safe placeholders are in `.env.example`. Run `pnpm config:check` before migration or deployment; it reports only whether secret-backed features are configured and never prints their values. Browser bundles receive no provider, email, database, or storage secrets. `TRUST_PROXY=true` is required only when a trusted reverse proxy terminates HTTPS immediately in front of the app.
 
-See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [MANUS_DEPENDENCY_AUDIT.md](./MANUS_DEPENDENCY_AUDIT.md), and [MIGRATION_REPORT.md](./MIGRATION_REPORT.md) for migration and operations detail.
+The important controls are:
+
+| Area | Variables |
+|---|---|
+| Runtime | `PORT`, `APP_BASE_URL`, `TRUST_PROXY`, `OWNER_USER_ID` |
+| Database | `DATABASE_URL`, `DATABASE_POOL_SIZE` |
+| AI | `AI_BASE_URL`, `AI_API_KEY`, model names, timeout/retry/output-token limits |
+| Storage | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, credentials, path-style and internal-HTTP flags |
+| Recovery email | `EMAIL_PROVIDER_URL`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, reset-token TTL |
+| Notifications | `NOTIFICATION_WEBHOOK_URL` |
+
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [BACKUP_AND_RECOVERY.md](./BACKUP_AND_RECOVERY.md), [PRODUCTION_CUTOVER.md](./PRODUCTION_CUTOVER.md), [SECURITY_REVIEW.md](./SECURITY_REVIEW.md), [INDEPENDENCE_VERIFICATION.md](./INDEPENDENCE_VERIFICATION.md), and [FINAL_HANDOVER.md](./FINAL_HANDOVER.md) for operations and migration detail.
 
 ## Troubleshooting
 

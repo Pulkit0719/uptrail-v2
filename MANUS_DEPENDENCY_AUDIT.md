@@ -35,7 +35,7 @@ No production credentials, infrastructure, or data were accessed.
 
 The runtime depended on `VITE_APP_ID`, `VITE_OAUTH_PORTAL_URL`, `OAUTH_SERVER_URL`, `JWT_SECRET`, `OWNER_OPEN_ID`, `BUILT_IN_FORGE_API_URL`, `BUILT_IN_FORGE_API_KEY`, `VITE_FRONTEND_FORGE_API_URL`, `VITE_FRONTEND_FORGE_API_KEY`, `VITE_ANALYTICS_ENDPOINT`, and `VITE_ANALYTICS_WEBSITE_ID`. They are no longer read.
 
-Independent configuration is documented in `.env.example`: `DATABASE_URL`, `OWNER_USER_ID`, `AI_*`, `S3_*`, `NOTIFICATION_WEBHOOK_URL`, `PORT`, and `TRUST_PROXY`.
+Independent configuration is documented in `.env.example`: runtime, `DATABASE_*`, `OWNER_USER_ID`, `AI_*`, `S3_*`, `EMAIL_*`, `NOTIFICATION_WEBHOOK_URL`, `PORT`, and `TRUST_PROXY`.
 
 ## Data and schema observations
 

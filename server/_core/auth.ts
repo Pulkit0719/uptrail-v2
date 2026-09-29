@@ -3,11 +3,12 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request, Response } from "express";
 import { TRPCError } from "@trpc/server";
-import { authCredentials, authSessions, users, type User } from "../../drizzle/schema";
+import { authCredentials, authSessions, passwordResetTokens, users, type AuthSession, type User } from "../../drizzle/schema";
 import { COOKIE_NAME, CSRF_COOKIE_NAME, SESSION_DURATION_MS } from "../../shared/const";
 import { getDb } from "../db";
 import { getCsrfCookieOptions, getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
+import { sendPasswordResetEmail } from "./email";
 
 const PASSWORD_BYTES = 64;
 const SCRYPT_OPTIONS = { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 } as const;
@@ -17,6 +18,8 @@ export type RequestAuth = { user: User | null; sessionId: string | null; csrfVal
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 const randomToken = () => randomBytes(32).toString("base64url");
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
+export const isSessionRecordActive = (session: Pick<AuthSession, "expiresAt" | "revokedAt">, now = new Date()) =>
+  !session.revokedAt && session.expiresAt > now;
 
 async function requireDb() {
   const db = await getDb();
@@ -67,8 +70,7 @@ export async function registerLocalUser(input: { name: string; email: string; pa
       return user;
     });
   } catch (error) {
-    const detail = String(error);
-    if (detail.includes("Duplicate") || detail.includes("unique")) {
+    if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
       throw new TRPCError({ code: "CONFLICT", message: "An account with that email already exists." });
     }
     throw error;
@@ -125,7 +127,8 @@ export async function authenticateRequest(req: Request): Promise<RequestAuth> {
   const csrfValid = Boolean(csrfCookie && csrfHeader && csrfCookie === csrfHeader && sha256(csrfCookie) === row.session.csrfHash);
   let user = row.user;
   if (ENV.ownerUserId === user.id && user.role !== "admin") {
-    await db.update(users).set({ role: "admin" }).where(eq(users.id, user.id));
+    // OWNER_USER_ID is an operational override, not a persistent privilege
+    // mutation. Removing/changing the variable therefore removes the grant.
     user = { ...user, role: "admin" };
   }
   return { user, sessionId: row.session.id, csrfValid };
@@ -160,6 +163,65 @@ export async function revokeSession(sessionId: string | null) {
   if (!sessionId) return;
   const db = await getDb();
   if (db) await db.update(authSessions).set({ revokedAt: new Date() }).where(eq(authSessions.id, sessionId));
+}
+
+export async function requestPasswordReset(email: string) {
+  // Known and unknown addresses intentionally have the same externally visible result.
+  if (!ENV.emailProviderUrl || !ENV.emailProviderApiKey || !ENV.emailFrom) return;
+  const db = await requireDb();
+  const [credential] = await db.select().from(authCredentials)
+    .where(eq(authCredentials.emailNormalized, normalizeEmail(email))).limit(1);
+  if (!credential) return;
+
+  const token = randomToken();
+  const now = new Date();
+  await db.transaction(async tx => {
+    await tx.update(passwordResetTokens).set({ usedAt: now })
+      .where(and(eq(passwordResetTokens.userId, credential.userId), isNull(passwordResetTokens.usedAt)));
+    await tx.insert(passwordResetTokens).values({
+      id: randomUUID(),
+      userId: credential.userId,
+      tokenHash: sha256(token),
+      expiresAt: new Date(now.getTime() + ENV.passwordResetTtlMinutes * 60_000),
+    });
+  });
+
+  try {
+    await sendPasswordResetEmail(credential.emailNormalized, token);
+  } catch {
+    console.error("[Auth] Password reset email delivery failed");
+  }
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const db = await requireDb();
+  const nextPassword = await hashPassword(newPassword);
+  const now = new Date();
+
+  await db.transaction(async tx => {
+    const [reset] = await tx.select().from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.tokenHash, sha256(token)),
+        isNull(passwordResetTokens.usedAt),
+        gt(passwordResetTokens.expiresAt, now),
+      )).limit(1);
+    if (!reset) throw new TRPCError({ code: "BAD_REQUEST", message: "This password reset link is invalid or expired." });
+
+    const result = await tx.update(passwordResetTokens).set({ usedAt: now })
+      .where(and(eq(passwordResetTokens.id, reset.id), isNull(passwordResetTokens.usedAt)));
+    const affectedRows = Array.isArray(result) && result[0] && "affectedRows" in result[0]
+      ? Number(result[0].affectedRows)
+      : 0;
+    if (affectedRows !== 1) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "This password reset link is invalid or expired." });
+    }
+    await tx.update(authCredentials).set({
+      passwordHash: nextPassword.hash,
+      passwordSalt: nextPassword.salt,
+    }).where(eq(authCredentials.userId, reset.userId));
+    await tx.update(authSessions).set({ revokedAt: now })
+      .where(and(eq(authSessions.userId, reset.userId), isNull(authSessions.revokedAt)));
+  });
 }
 
 export function clearAuthCookies(req: Request, res: Response) {

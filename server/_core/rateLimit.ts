@@ -14,3 +14,7 @@ export function enforceRateLimit(key: string, limit = 10, windowMs = 15 * 60_000
   }
   current.count += 1;
 }
+
+export function resetRateLimitsForTests() {
+  attempts.clear();
+}

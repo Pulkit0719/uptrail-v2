@@ -15,8 +15,8 @@ export async function createContext(opts: CreateExpressContextOptions): Promise<
   let auth = { user: null, sessionId: null, csrfValid: false } as Awaited<ReturnType<typeof authenticateRequest>>;
   try {
     auth = await authenticateRequest(opts.req);
-  } catch (error) {
-    console.warn("[Auth] Request authentication unavailable", error);
+  } catch {
+    console.warn("[Auth] Request authentication unavailable");
   }
   return {
     req: opts.req,

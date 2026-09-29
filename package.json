@@ -12,6 +12,13 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:verify": "tsx scripts/db-verify.ts",
+    "db:integrity": "tsx scripts/db-integrity.ts",
+    "db:backup": "tsx scripts/db-backup.ts",
+    "db:restore": "tsx scripts/db-restore.ts",
+    "storage:migrate": "tsx scripts/storage-migrate.ts",
+    "config:check": "tsx scripts/check-config.ts --strict",
+    "auth:find-user-id": "tsx scripts/find-user-id.ts",
     "auth:link-legacy": "tsx scripts/link-legacy-account.ts"
   },
   "dependencies": {

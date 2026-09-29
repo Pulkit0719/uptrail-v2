@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OpenAICompatibleProvider, setAIProviderForTests, type AIProvider } from "./_core/aiProvider";
 import { invokeLLM } from "./_core/llm";
-import { normalizeStorageKey } from "./storage";
+import { normalizeStorageKey, validateStorageContentType, validateStorageUpload } from "./storage";
 
 afterEach(() => {
   setAIProviderForTests(undefined);
@@ -12,6 +12,10 @@ describe("independent service abstractions", () => {
   it("rejects traversal and accepts scoped object keys", () => {
     expect(normalizeStorageKey("users/42/resume.pdf")).toBe("users/42/resume.pdf");
     expect(() => normalizeStorageKey("../secret")).toThrow("Invalid storage key");
+    expect(validateStorageContentType("image/png; charset=binary")).toBe("image/png");
+    expect(() => validateStorageContentType("text/html")).toThrow("Unsupported storage content type");
+    expect(validateStorageUpload("users/42/avatar.png", "image/png")).toBe("image/png");
+    expect(() => validateStorageUpload("users/42/avatar.html", "image/png")).toThrow("extension does not match");
   });
 
   it("keeps the AI key in the provider authorization header", async () => {

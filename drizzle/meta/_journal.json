@@ -43,6 +43,13 @@
       "when": 1790696516872,
       "tag": "0005_clear_sunspot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1790702932414,
+      "tag": "0006_foamy_nitro",
+      "breakpoints": true
     }
   ]
 }

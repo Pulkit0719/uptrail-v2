@@ -11,8 +11,8 @@ export function registerStorageProxy(app: Express) {
       const key = normalizeStorageKey(decodeURIComponent(raw ?? ""));
       res.set("Cache-Control", "private, no-store");
       return res.redirect(307, await storageGetSignedUrl(key));
-    } catch (error) {
-      console.error("[Storage] signed download failed", error);
+    } catch {
+      console.error("[Storage] Signed download failed");
       return res.status(404).send("Object not found");
     }
   };

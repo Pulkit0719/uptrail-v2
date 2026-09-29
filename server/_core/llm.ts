@@ -1,4 +1,6 @@
 import { getAIProvider } from "./aiProvider";
+import { ENV } from "./env";
+import { z } from "zod";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -292,10 +294,8 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  const resolvedMaxTokens = max_tokens ?? maxTokens;
-  if (typeof resolvedMaxTokens === "number") {
-    payload.max_tokens = resolvedMaxTokens;
-  }
+  const resolvedMaxTokens = max_tokens ?? maxTokens ?? ENV.aiMaxOutputTokens;
+  payload.max_tokens = Math.min(Math.max(Math.trunc(resolvedMaxTokens), 1), ENV.aiMaxOutputTokens);
 
   if (thinking) {
     payload.thinking = thinking;
@@ -324,13 +324,24 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
-    );
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error(`LLM invoke failed (${response.status})`);
   }
 
-  return (await response.json()) as InvokeResult;
+  const resultSchema = z.object({
+    id: z.string(),
+    created: z.number(),
+    model: z.string(),
+    choices: z.array(z.object({
+      index: z.number(),
+      message: z.object({ role: z.string(), content: z.union([z.string(), z.array(z.unknown())]), tool_calls: z.array(z.unknown()).optional() }),
+      finish_reason: z.string().nullable(),
+    })).min(1),
+    usage: z.object({ prompt_tokens: z.number(), completion_tokens: z.number(), total_tokens: z.number() }).optional(),
+  });
+  const parsed = resultSchema.safeParse(await response.json());
+  if (!parsed.success) throw new Error("AI provider returned an invalid chat response");
+  return parsed.data as InvokeResult;
 }
 
 export type ModelInfo = {
@@ -349,10 +360,8 @@ export async function listLLMModels(): Promise<ModelsResponse> {
   const response = await getAIProvider().request("models");
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `List LLM models failed: ${response.status} ${response.statusText} – ${errorText}`
-    );
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error(`List LLM models failed (${response.status})`);
   }
 
   return (await response.json()) as ModelsResponse;

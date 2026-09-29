@@ -2,7 +2,7 @@ import { z } from "zod";
 import { mentorReply } from "./mentor";
 import { getLiveOpportunities } from "./opportunities";
 import { addLearnerAchievement, getLearnerProfile, getLearnerSnapshot, markRoadmapMilestone, removeLearnerAchievement, replaceLearnerSkills, saveLearnerProfile } from "./profile";
-import { authenticateLocalUser, clearAuthCookies, createSession, normalizeEmail, registerLocalUser, revokeSession } from "./_core/auth";
+import { authenticateLocalUser, clearAuthCookies, createSession, normalizeEmail, registerLocalUser, requestPasswordReset, resetPassword, revokeSession } from "./_core/auth";
 import { enforceRateLimit } from "./_core/rateLimit";
 import { systemRouter } from "./_core/systemRouter";
 import { csrfProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -17,6 +17,7 @@ export const appRouter = router({
       email: z.string().trim().email().max(320),
       password: z.string().min(12).max(128),
     })).mutation(async ({ ctx, input }) => {
+      enforceRateLimit(`register-ip:${ctx.req.ip}`, 10, 60 * 60_000);
       enforceRateLimit(`register:${ctx.req.ip}:${normalizeEmail(input.email)}`, 5);
       const user = await registerLocalUser(input);
       await createSession(user.id, ctx.req, ctx.res);
@@ -26,13 +27,30 @@ export const appRouter = router({
       email: z.string().trim().email().max(320),
       password: z.string().min(1).max(128),
     })).mutation(async ({ ctx, input }) => {
+      enforceRateLimit(`login-ip:${ctx.req.ip}`, 30);
       enforceRateLimit(`login:${ctx.req.ip}:${normalizeEmail(input.email)}`);
       const user = await authenticateLocalUser(input.email, input.password);
       await createSession(user.id, ctx.req, ctx.res);
       return user;
     }),
-    logout: csrfProcedure.mutation(async ({ ctx }) => {
+    logout: protectedProcedure.mutation(async ({ ctx }) => {
       await revokeSession(ctx.sessionId);
+      clearAuthCookies(ctx.req, ctx.res);
+      return { success: true } as const;
+    }),
+    requestPasswordReset: csrfProcedure.input(z.object({
+      email: z.string().trim().email().max(320),
+    })).mutation(async ({ ctx, input }) => {
+      enforceRateLimit(`password-reset-request:${ctx.req.ip}`, 5, 30 * 60_000);
+      await requestPasswordReset(input.email);
+      return { success: true } as const;
+    }),
+    resetPassword: csrfProcedure.input(z.object({
+      token: z.string().min(32).max(128),
+      password: z.string().min(12).max(128),
+    })).mutation(async ({ ctx, input }) => {
+      enforceRateLimit(`password-reset:${ctx.req.ip}`, 10, 30 * 60_000);
+      await resetPassword(input.token, input.password);
       clearAuthCookies(ctx.req, ctx.res);
       return { success: true } as const;
     }),

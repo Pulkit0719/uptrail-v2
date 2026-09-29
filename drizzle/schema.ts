@@ -39,6 +39,18 @@ export const authSessions = mysqlTable("authSessions", {
   index("authSessions_expiry_idx").on(table.expiresAt),
 ]);
 
+export const passwordResetTokens = mysqlTable("passwordResetTokens", {
+  id: char("id", { length: 36 }).primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: char("tokenHash", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  usedAt: timestamp("usedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("passwordResetTokens_user_idx").on(table.userId),
+  index("passwordResetTokens_expiry_idx").on(table.expiresAt),
+]);
+
 export const learnerProfiles = mysqlTable("learnerProfiles", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
@@ -96,6 +108,7 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type AuthCredential = typeof authCredentials.$inferSelect;
 export type AuthSession = typeof authSessions.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type LearnerProfile = typeof learnerProfiles.$inferSelect;
 export type InsertLearnerProfile = typeof learnerProfiles.$inferInsert;
 export type LearnerSkillRecord = typeof learnerSkills.$inferSelect;

@@ -26,7 +26,7 @@ export async function transcribeAudio(options: TranscribeOptions): Promise<Trans
     const result = await response.json() as Partial<TranscriptionResponse>;
     if (!result.text) return { error: "Transcription provider returned no text", code: "SERVICE_ERROR" };
     return { task: "transcribe", language: result.language ?? options.language ?? "unknown", duration: result.duration ?? 0, text: result.text, segments: result.segments ?? [] };
-  } catch (error) {
-    return { error: "Voice transcription failed", code: "SERVICE_ERROR", details: error instanceof Error ? error.message : "Unknown error" };
+  } catch {
+    return { error: "Voice transcription failed", code: "SERVICE_ERROR" };
   }
 }

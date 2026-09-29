@@ -25,7 +25,7 @@ services:
     volumes:
       - object-data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -56,6 +56,8 @@ services:
   app:
     build: .
     restart: unless-stopped
+    init: true
+    stop_grace_period: 20s
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -65,20 +67,30 @@ services:
       - "3000:3000"
     environment:
       PORT: 3000
+      APP_BASE_URL: ${APP_BASE_URL}
       TRUST_PROXY: "false"
       DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
       OWNER_USER_ID: ${OWNER_USER_ID:-}
       AI_BASE_URL: ${AI_BASE_URL}
       AI_API_KEY: ${AI_API_KEY}
       AI_CHAT_MODEL: ${AI_CHAT_MODEL}
       AI_IMAGE_MODEL: ${AI_IMAGE_MODEL}
       AI_TRANSCRIPTION_MODEL: ${AI_TRANSCRIPTION_MODEL}
+      AI_REQUEST_TIMEOUT_MS: ${AI_REQUEST_TIMEOUT_MS:-30000}
+      AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-800}
+      AI_MAX_RETRIES: ${AI_MAX_RETRIES:-2}
       S3_ENDPOINT: http://minio:9000
       S3_REGION: ${S3_REGION}
       S3_BUCKET: ${S3_BUCKET}
       S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
       S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       S3_FORCE_PATH_STYLE: "true"
+      S3_ALLOW_INSECURE_HTTP: "true"
+      EMAIL_PROVIDER_URL: ${EMAIL_PROVIDER_URL:-}
+      EMAIL_PROVIDER_API_KEY: ${EMAIL_PROVIDER_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-30}
       NOTIFICATION_WEBHOOK_URL: ${NOTIFICATION_WEBHOOK_URL:-}
 
 volumes:

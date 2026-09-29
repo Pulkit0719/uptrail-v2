@@ -8,8 +8,8 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { issueCsrfToken } from "./auth";
-import { ENV } from "./env";
-import { getDb } from "../db";
+import { ENV, validateConfiguration } from "./env";
+import { closeDb, getDb } from "../db";
 import { sql } from "drizzle-orm";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -32,17 +32,24 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  const configuration = validateConfiguration();
+  for (const warning of configuration.warnings) console.warn(`[Config] ${warning}`);
+  if (configuration.errors.length) {
+    throw new Error(`Invalid runtime configuration:\n- ${configuration.errors.join("\n- ")}`);
+  }
   const app = express();
   const server = createServer(app);
   app.set("trust proxy", ENV.trustProxy ? 1 : false);
   app.disable("x-powered-by");
-  app.use((_req, res, next) => {
+  app.use((req, res, next) => {
     res.set({
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
+      "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
     });
+    if (ENV.isProduction && req.secure) res.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     next();
   });
   app.use(express.json({ limit: "2mb" }));
@@ -93,6 +100,34 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[Server] ${signal} received; draining connections`);
+    const forceExit = setTimeout(() => {
+      console.error("[Server] Graceful shutdown timed out");
+      server.closeAllConnections();
+      process.exit(1);
+    }, 15_000);
+    forceExit.unref();
+    server.close(async error => {
+      try {
+        await closeDb();
+      } catch (closeError) {
+        console.error("[Database] Shutdown failed", closeError);
+      } finally {
+        clearTimeout(forceExit);
+        process.exit(error ? 1 : 0);
+      }
+    });
+  };
+  process.once("SIGTERM", () => void shutdown("SIGTERM"));
+  process.once("SIGINT", () => void shutdown("SIGINT"));
 }
 
-startServer().catch(console.error);
+startServer().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
