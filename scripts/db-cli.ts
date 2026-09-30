@@ -27,7 +27,10 @@ export async function runDatabaseTool(command: "mysqldump" | "mysql", args: stri
     createReadStream(options.inputFile).pipe(child.stdin!);
   }
   return new Promise<void>((resolvePromise, reject) => {
-    child.once("error", reject);
+    child.once("error", error => {
+      const code = (error as NodeJS.ErrnoException).code ?? "START_FAILED";
+      reject(new Error(`${command} could not be started (${code}); connection details were suppressed`));
+    });
     child.once("exit", code => code === 0 ? resolvePromise() : reject(new Error(`${command} exited with code ${code}`)));
   });
 }
