@@ -18,6 +18,9 @@ describe("guarded v2 migration safeguards", () => {
     expect(() => assertSafeMigrationTarget("other", "dryrun", "dryrun")).toThrow();
     expect(() => assertSafeMigrationTarget("dryrun", "dryrun", "other")).toThrow();
     expect(() => assertSafeMigrationTarget("defaultdb", "defaultdb", "defaultdb")).toThrow(/protected/);
+    expect(() => assertSafeMigrationTarget("defaultdb", "defaultdb", "defaultdb", true)).not.toThrow();
+    expect(() => assertSafeMigrationTarget("other", "defaultdb", "defaultdb", true)).toThrow();
+    expect(() => assertSafeMigrationTarget("defaultdb", "defaultdb", "other", true)).toThrow();
   });
 
   it("allows only CREATE TABLE statements", () => {

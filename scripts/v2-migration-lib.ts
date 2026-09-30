@@ -45,9 +45,16 @@ export function sha256(content: string | Buffer) {
   return createHash("sha256").update(content).digest("hex");
 }
 
-export function assertSafeMigrationTarget(parsedDatabase: string, expectedDatabase: string, activeDatabase: string) {
+export function assertSafeMigrationTarget(
+  parsedDatabase: string,
+  expectedDatabase: string,
+  activeDatabase: string,
+  allowProtectedDefaultDb = false,
+) {
   if (!expectedDatabase) throw new Error("EXPECTED_DATABASE_NAME is required");
-  if (expectedDatabase.toLowerCase() === "defaultdb") throw new Error("defaultdb is a protected migration target");
+  if (expectedDatabase.toLowerCase() === "defaultdb" && !allowProtectedDefaultDb) {
+    throw new Error("defaultdb is a protected migration target");
+  }
   if (parsedDatabase !== expectedDatabase) throw new Error("Parsed database does not match EXPECTED_DATABASE_NAME");
   if (activeDatabase !== expectedDatabase) throw new Error("Live database does not match EXPECTED_DATABASE_NAME");
 }

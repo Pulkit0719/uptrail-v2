@@ -37,6 +37,8 @@ const expectedDatabase = process.env.EXPECTED_DATABASE_NAME ?? "";
 if (!databaseUrl || !caFile) throw new Error("Selected environment is missing database TLS configuration");
 const parsed = parseDatabaseUrl(databaseUrl);
 const loaded = await loadAndValidateV2Migrations();
+const allowProtectedDefaultDb = process.env.ALLOW_DEFAULTDB_V2_MIGRATION === "true"
+  && process.env.CONFIRM_DEFAULTDB_V2_DATABASE === "defaultdb";
 
 const OLD_FOREIGN_KEYS = new Set([
   "careerAssessmentAttempts.userId->users.id",
@@ -62,7 +64,7 @@ async function activeDatabase() {
 }
 
 async function assertLiveTarget() {
-  assertSafeMigrationTarget(parsed.database, expectedDatabase, await activeDatabase());
+  assertSafeMigrationTarget(parsed.database, expectedDatabase, await activeDatabase(), allowProtectedDefaultDb);
 }
 
 async function tableNames() {

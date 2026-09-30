@@ -70,7 +70,9 @@ pnpm db:v2:preflight
 Execution additionally requires a separately verified backup plus
 `ALLOW_V2_MIGRATION=true`, `V2_PREMIGRATION_BACKUP_FILE`, and
 `V2_PREMIGRATION_BACKUP_SHA256`. The runner verifies the live database name
-before each DDL or ledger write, refuses `defaultdb`, validates migration
-hashes, rejects partial states, and executes only reviewed `CREATE TABLE`
-statements from `drizzle-v2/`. Use `pnpm db:v2:verify` for read-only
-postcondition verification.
+before each DDL or ledger write and rejects `defaultdb` unless a separately
+authorized production run sets both `ALLOW_DEFAULTDB_V2_MIGRATION=true` and
+`CONFIRM_DEFAULTDB_V2_DATABASE=defaultdb`. It validates migration hashes,
+rejects partial states, and executes only reviewed `CREATE TABLE` statements
+from `drizzle-v2/`. Use `pnpm db:v2:verify` for read-only postcondition
+verification.
