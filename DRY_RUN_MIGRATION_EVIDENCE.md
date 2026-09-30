@@ -68,8 +68,26 @@ Before and after legacy counts:
 
 ## Rollback status
 
-A restore-based rollback into a separate recovery database was not performed.
-The phase's absolute rule allowed writes only to `uptrail_migration_dryrun`, and
-no separately authorized `uptrail_migration_recovery` target was available.
-The verified pre-migration backup is ready for that rehearsal. `defaultdb` was
-not used as a rollback target and received no write operation.
+A restore-based rollback into `uptrail_migration_recovery` was completed on
+2026-10-01 and passed.
+
+- Restore source: `uptrail_migration_dryrun-pre-v2-20260930-232101.sql`
+- Restore source SHA-256: `72142beba62787d6abf99b678af03e32f0e6fed6216ee51b76aaefbf185f7291`
+- Empty recovery pre-restore backup:
+  `uptrail_migration_recovery-empty-pre-restore-20261001-015106.sql`
+- Empty recovery backup SHA-256:
+  `20ac59e1a21b8d6b4697d4e719968d33a854d95f545a50cd9128405d3e6eaa73`
+- Recovered tables: exactly 8; no auth tables or v2 ledger.
+- Recovered counts: `1 / 1 / 2 / 2 / 0 / 1 / 1 / 1` in the documented order.
+- Foreign keys: 6; orphan relationships: 0.
+- Historical ledger: authentic `0000` only.
+- TLS: `TLSv1.3 / TLS_AES_256_GCM_SHA384` with certificate verification.
+
+`defaultdb` and `uptrail_migration_dryrun` were not restore targets and received
+no write operation during the rehearsal.
+
+## Final decision
+
+The dry-run migration and independent restore-based rollback evidence pass.
+The technical evidence supports requesting a separate, explicit authorization
+to migrate `defaultdb`; this evidence does not itself authorize that migration.

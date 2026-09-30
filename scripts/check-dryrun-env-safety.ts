@@ -3,7 +3,15 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, sep } from "node:path";
 import { parse } from "dotenv";
 
-const secretEntries = [".env", ".env.dryrun"].flatMap(file => {
+const environmentFiles = [".env", ".env.dryrun", ".env.recovery"].filter(file => {
+  try {
+    readFileSync(file);
+    return true;
+  } catch {
+    return false;
+  }
+});
+const secretEntries = environmentFiles.flatMap(file => {
   const values = parse(readFileSync(file, "utf8"));
   return Object.entries(values)
     .filter(([key, value]) => /(?:DATABASE_URL|PASSWORD|SECRET|API_KEY|ACCESS_KEY|DATABASE_SSL_CA_FILE)/i.test(key) && value.length >= 8)
@@ -50,7 +58,7 @@ const history = execFileSync("git", ["log", "--all", "-p", "--no-ext-diff"], {
 });
 const historyContainsSecret = containsSecret(history);
 
-const ignoredPaths = [".env", ".env.dryrun", "backups/probe.sql", "migration-artifacts/probe.json"];
+const ignoredPaths = [".env", ".env.dryrun", ".env.recovery", "backups/probe.sql", "migration-artifacts/probe.json"];
 const ignoredCorrectly = ignoredPaths.every(path => {
   try {
     execFileSync("git", ["check-ignore", "-q", path]);

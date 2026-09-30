@@ -16,6 +16,8 @@
     "db:dryrun:setup": "tsx scripts/setup-dryrun-env.ts",
     "db:dryrun:verify": "tsx scripts/db-dryrun-verify.ts",
     "db:dryrun:safety": "tsx scripts/check-dryrun-env-safety.ts",
+    "db:recovery:setup": "tsx scripts/setup-recovery-env.ts",
+    "db:recovery:verify": "tsx scripts/db-recovery-verify.ts",
     "db:v2:preflight": "tsx scripts/db-v2-migrate.ts --preflight",
     "db:v2:migrate": "tsx scripts/db-v2-migrate.ts --migrate",
     "db:v2:verify": "tsx scripts/db-v2-migrate.ts --verify",

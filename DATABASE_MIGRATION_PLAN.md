@@ -280,7 +280,7 @@ Before either restore, run `Get-FileHash -Algorithm SHA256 -LiteralPath "C:\secu
 
 ## Go / no-go
 
-Current status: **dry-run migration PASS; NO-GO for `defaultdb` execution until the separate recovery-database rollback rehearsal passes**.
+Current status: **dry-run migration PASS and recovery-database rollback rehearsal PASS; separate explicit authorization is still required before any `defaultdb` write**.
 
 Execution authorization should not be considered until all of these are true:
 
@@ -297,8 +297,6 @@ Execution authorization should not be considered until all of these are true:
 
 ## Exact next action
 
-Create one empty Aiven database named `uptrail_migration_recovery`, privately
-configure ignored `.env.recovery` with its database URI and the existing CA-file
-path, and explicitly authorize restore writes to that database for the rollback
-rehearsal. Do not paste either value into chat and do not authorize migration of
-`defaultdb` yet.
+Review `DRY_RUN_MIGRATION_REPORT.md` and, only if its evidence is accepted,
+provide a separate explicit authorization naming `defaultdb` and the approved
+v2 migration hashes. Do not paste credentials or CA contents into chat.
