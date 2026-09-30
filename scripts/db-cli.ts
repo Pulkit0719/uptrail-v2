@@ -1,19 +1,19 @@
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { spawn } from "node:child_process";
+import { parseDatabaseUrl } from "../server/_core/databaseConfig";
 
 export function parseMysqlUrl(value: string) {
-  const url = new URL(value);
-  if (url.protocol !== "mysql:") throw new Error("Only mysql:// database URLs are supported");
-  const database = decodeURIComponent(url.pathname.replace(/^\//, ""));
-  if (!database) throw new Error("Database URL must include a database name");
-  return {
-    host: url.hostname,
-    port: url.port || "3306",
-    user: decodeURIComponent(url.username),
-    password: decodeURIComponent(url.password),
-    database,
-  };
+  return parseDatabaseUrl(value);
+}
+
+function mysqlTlsArgs(connection: ReturnType<typeof parseMysqlUrl>) {
+  const caFile = process.env.DATABASE_SSL_CA_FILE;
+  if (!connection.sslMode && !caFile) return [];
+  return [
+    `--ssl-mode=${connection.sslMode === "VERIFY_CA" ? "VERIFY_CA" : "VERIFY_IDENTITY"}`,
+    ...(caFile ? [`--ssl-ca=${resolve(caFile)}`] : []),
+  ];
 }
 
 export async function runDatabaseTool(command: "mysqldump" | "mysql", args: string[], password: string, options: { inputFile?: string } = {}) {
@@ -46,8 +46,10 @@ export async function backupDatabase(databaseUrl: string, outputFile: string) {
   }
   await runDatabaseTool("mysqldump", [
     `--host=${connection.host}`, `--port=${connection.port}`, `--user=${connection.user}`,
-    "--single-transaction", "--routines", "--triggers", "--set-gtid-purged=OFF",
-    "--no-tablespaces", `--result-file=${destination}`, connection.database,
+    ...mysqlTlsArgs(connection),
+    "--single-transaction", "--routines", "--triggers", "--events", "--hex-blob",
+    "--default-character-set=utf8mb4", "--set-gtid-purged=OFF", "--no-tablespaces",
+    `--result-file=${destination}`, connection.database,
   ], connection.password);
   return destination;
 }

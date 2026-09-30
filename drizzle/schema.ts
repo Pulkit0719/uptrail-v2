@@ -104,6 +104,33 @@ export const learnerAchievements = mysqlTable("learnerAchievements", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => [index("learnerAchievements_user_created_idx").on(table.userId, table.createdAt)]);
 
+// Imported legacy assessment tables. These definitions intentionally mirror
+// the restored schema so future schema tooling does not treat valid data as
+// unmanaged or disposable. The v2 imported baseline never creates them.
+export const careerAssessmentAttempts = mysqlTable("careerAssessmentAttempts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  answersJson: text("answersJson").notNull(),
+  recommendationsJson: text("recommendationsJson").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("careerAssessmentAttempts_userId_users_id_fk").on(table.userId),
+  index("careerAssessmentAttempts_user_created_idx").on(table.userId, table.createdAt),
+]);
+
+export const skillAssessmentAttempts = mysqlTable("skillAssessmentAttempts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  skillName: varchar("skillName", { length: 120 }).notNull(),
+  answersJson: text("answersJson").notNull(),
+  score: int("score").notNull(),
+  breakdownJson: text("breakdownJson").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("skillAssessmentAttempts_userId_users_id_fk").on(table.userId),
+  index("skillAssessmentAttempts_user_skill_created_idx").on(table.userId, table.skillName, table.createdAt),
+]);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type AuthCredential = typeof authCredentials.$inferSelect;
@@ -115,3 +142,5 @@ export type LearnerSkillRecord = typeof learnerSkills.$inferSelect;
 export type InsertLearnerSkill = typeof learnerSkills.$inferInsert;
 export type RoadmapProgress = typeof roadmapProgress.$inferSelect;
 export type LearnerAchievement = typeof learnerAchievements.$inferSelect;
+export type CareerAssessmentAttempt = typeof careerAssessmentAttempts.$inferSelect;
+export type SkillAssessmentAttempt = typeof skillAssessmentAttempts.$inferSelect;

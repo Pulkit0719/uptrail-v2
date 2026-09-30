@@ -39,6 +39,8 @@ pnpm db:integrity
 
 Review every generated SQL file before applying it. Never generate schema changes against production. Migrations `0005` and `0006` are additive and preserve existing user/profile/progress relationships. Test every backup by restoring into a separate database using the guarded process in BACKUP_AND_RECOVERY.md.
 
+For an existing Manus database, do not initialize an empty replacement with the full Drizzle history first. Restore the authorized legacy schema and data into an empty isolated target, inspect its `__drizzle_migrations` ledger, and reconcile that ledger with the reviewed repository migrations. Only then apply the additive independence migrations `0005` and `0006`. The repository journal references `0001_organic_silver_surfer`, but that SQL file was not present in the original repository; never fabricate or mark that migration as applied without comparing the restored schema.
+
 ## Existing identity cutover
 
 1. Export the existing `users` table and retain the old external subject (`openId`) mapping.

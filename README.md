@@ -15,11 +15,15 @@ Uptrail is a React/Vite career-navigation client backed by Express, tRPC, Drizzl
 ```powershell
 ./scripts/setup-windows.ps1
 # Review .env, then:
-pnpm db:migrate
+pnpm config:check
 pnpm dev
 ```
 
-Edit `.env` before migrating. At minimum, set `DATABASE_URL`. Configure the `S3_*` values before using generated media, and `AI_API_KEY` before using the mentor. Open `http://localhost:3000`.
+Edit `.env` before starting. At minimum, set `DATABASE_URL`. Imported databases
+must use the guarded v2 workflow in `BACKUP_AND_RECOVERY.md`; never run the
+legacy migration journal or `drizzle-kit push` against imported data. Configure
+the `S3_*` values before using generated media, and `AI_API_KEY` before using the
+mentor. Open `http://localhost:3000`.
 
 The `dev` command starts the Express API and Vite middleware together. The production flow is:
 
@@ -74,7 +78,9 @@ pnpm build
 pnpm audit --audit-level high
 ```
 
-Generate schema changes with `pnpm db:generate`, review the SQL, back up the target database, and only then run `pnpm db:migrate`.
+For imported databases, use only `pnpm db:v2:preflight`, the explicitly
+authorized `pnpm db:v2:migrate`, and `pnpm db:v2:verify`. Migration files and
+hashes must be reviewed and a verified backup supplied before execution.
 
 ## Configuration
 
@@ -85,7 +91,7 @@ The important controls are:
 | Area | Variables |
 |---|---|
 | Runtime | `PORT`, `APP_BASE_URL`, `TRUST_PROXY`, `OWNER_USER_ID` |
-| Database | `DATABASE_URL`, `DATABASE_POOL_SIZE` |
+| Database | `DATABASE_URL`, `DATABASE_POOL_SIZE`, optional `DATABASE_SSL_CA_FILE` for a provider CA |
 | AI | `AI_BASE_URL`, `AI_API_KEY`, model names, timeout/retry/output-token limits |
 | Storage | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, credentials, path-style and internal-HTTP flags |
 | Recovery email | `EMAIL_PROVIDER_URL`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, reset-token TTL |

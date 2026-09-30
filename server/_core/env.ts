@@ -1,3 +1,5 @@
+import { getDatabaseConnectionOptions, parseDatabaseUrl } from "./databaseConfig";
+
 const positiveInteger = (value: string | undefined, fallback: number) => {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -5,6 +7,7 @@ const positiveInteger = (value: string | undefined, fallback: number) => {
 
 export const ENV = {
   databaseUrl: process.env.DATABASE_URL ?? "",
+  databaseSslCaFile: process.env.DATABASE_SSL_CA_FILE ?? "",
   ownerUserId: process.env.OWNER_USER_ID ? Number(process.env.OWNER_USER_ID) : undefined,
   isProduction: process.env.NODE_ENV === "production",
   appBaseUrl: process.env.APP_BASE_URL ?? "http://localhost:3000",
@@ -51,6 +54,20 @@ export function validateConfiguration(strict = ENV.isProduction): ConfigurationR
   const issue = (message: string) => (strict ? errors : warnings).push(message);
 
   if (!ENV.databaseUrl) issue("DATABASE_URL is required.");
+  if (ENV.databaseSslCaFile && !ENV.databaseUrl) {
+    errors.push("DATABASE_URL is required when DATABASE_SSL_CA_FILE is configured.");
+  }
+  if (ENV.databaseUrl) {
+    try {
+      const database = parseDatabaseUrl(ENV.databaseUrl);
+      getDatabaseConnectionOptions(ENV.databaseUrl, ENV.databaseSslCaFile);
+      if (database.sslMode && !ENV.databaseSslCaFile) {
+        warnings.push("DATABASE_SSL_CA_FILE is not configured; TLS verification will use the operating system trust store.");
+      }
+    } catch (error) {
+      errors.push(`Database configuration is invalid: ${error instanceof Error ? error.message : "unknown error"}.`);
+    }
+  }
   if (ENV.ownerUserId !== undefined && (!Number.isSafeInteger(ENV.ownerUserId) || ENV.ownerUserId < 1)) {
     errors.push("OWNER_USER_ID must be a positive integer.");
   }
