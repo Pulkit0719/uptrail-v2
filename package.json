@@ -32,7 +32,8 @@
     "storage:migrate": "tsx scripts/storage-migrate.ts",
     "config:check": "tsx scripts/check-config.ts --strict",
     "auth:find-user-id": "tsx scripts/find-user-id.ts",
-    "auth:link-legacy": "tsx scripts/link-legacy-account.ts"
+    "auth:link-legacy:preflight": "tsx scripts/link-legacy-account.ts --preflight",
+    "auth:link-legacy": "tsx scripts/link-legacy-account.ts --link"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1142.0",
