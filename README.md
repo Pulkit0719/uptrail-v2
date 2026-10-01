@@ -7,7 +7,6 @@ Uptrail is a React/Vite career-navigation client backed by Express, tRPC, Drizzl
 - Node.js 20.19+ or 22.12+
 - pnpm 10.4.1 (Corepack can install the pinned version)
 - MySQL 8+
-- A private S3-compatible bucket (AWS S3, Cloudflare R2, MinIO, and similar)
 - An OpenAI-compatible API key for the AI mentor; the rest of the app can run without it
 
 ## Windows / VS Code setup
@@ -22,8 +21,7 @@ pnpm dev
 Edit `.env` before starting. At minimum, set `DATABASE_URL`. Imported databases
 must use the guarded v2 workflow in `BACKUP_AND_RECOVERY.md`; never run the
 legacy migration journal or `drizzle-kit push` against imported data. Configure
-the `S3_*` values before using generated media, and `AI_API_KEY` before using the
-mentor. Open `http://localhost:3000`.
+`AI_API_KEY` before using the mentor. Open `http://localhost:3000`.
 
 The `dev` command starts the Express API and Vite middleware together. The production flow is:
 
@@ -40,7 +38,15 @@ Copy `.env.example` to `.env`, replace all example passwords, add an AI key if n
 docker compose up --build
 ```
 
-Compose starts MySQL, MinIO, creates the private bucket, applies Drizzle migrations, and starts Uptrail on port 3000. It uses named volumes; `docker compose down` does not delete them. Do not run `docker compose down -v` against data you need.
+Compose starts MySQL, applies Drizzle migrations, and starts Uptrail on port 3000. It uses a named MySQL volume; `docker compose down` does not delete it. Do not run `docker compose down -v` against data you need.
+
+## Storage-free operation
+
+Uptrail's currently enabled product flows do not upload, download, generate, or
+persist binary files. The application therefore requires no S3 bucket,
+Cloudflare R2 account, MinIO service, storage credentials, storage proxy, or
+durable local upload directory. Profiles, skills, roadmap progress,
+achievements, assessments, credentials, and sessions are stored in MySQL.
 
 ## Authentication
 
@@ -84,18 +90,17 @@ hashes must be reviewed and a verified backup supplied before execution.
 
 ## Configuration
 
-All supported variables and safe placeholders are in `.env.example`. Run `pnpm config:check` before migration or deployment; it reports only whether secret-backed features are configured and never prints their values. Browser bundles receive no provider, email, database, or storage secrets. `TRUST_PROXY=true` is required only when a trusted reverse proxy terminates HTTPS immediately in front of the app.
+All supported variables and safe placeholders are in `.env.example`. Run `pnpm config:check` before migration or deployment; it reports only whether secret-backed features are configured and never prints their values. Browser bundles receive no provider, email, or database secrets. `TRUST_PROXY=true` is required only when a trusted reverse proxy terminates HTTPS immediately in front of the app.
 
 The important controls are:
 
-| Area | Variables |
-|---|---|
-| Runtime | `PORT`, `APP_BASE_URL`, `TRUST_PROXY`, `OWNER_USER_ID` |
-| Database | `DATABASE_URL`, `DATABASE_POOL_SIZE`, optional `DATABASE_SSL_CA_FILE` for a provider CA |
-| AI | `AI_BASE_URL`, `AI_API_KEY`, model names, timeout/retry/output-token limits |
-| Storage | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, credentials, path-style and internal-HTTP flags |
-| Recovery email | `EMAIL_PROVIDER_URL`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, reset-token TTL |
-| Notifications | `NOTIFICATION_WEBHOOK_URL` |
+| Area           | Variables                                                                               |
+| -------------- | --------------------------------------------------------------------------------------- |
+| Runtime        | `PORT`, `APP_BASE_URL`, `TRUST_PROXY`, `OWNER_USER_ID`                                  |
+| Database       | `DATABASE_URL`, `DATABASE_POOL_SIZE`, optional `DATABASE_SSL_CA_FILE` for a provider CA |
+| AI             | `AI_BASE_URL`, `AI_API_KEY`, model names, timeout/retry/output-token limits             |
+| Recovery email | `EMAIL_PROVIDER_URL`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, reset-token TTL           |
+| Notifications  | `NOTIFICATION_WEBHOOK_URL`                                                              |
 
 See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [BACKUP_AND_RECOVERY.md](./BACKUP_AND_RECOVERY.md), [PRODUCTION_CUTOVER.md](./PRODUCTION_CUTOVER.md), [SECURITY_REVIEW.md](./SECURITY_REVIEW.md), [INDEPENDENCE_VERIFICATION.md](./INDEPENDENCE_VERIFICATION.md), and [FINAL_HANDOVER.md](./FINAL_HANDOVER.md) for operations and migration detail.
 
@@ -104,7 +109,6 @@ See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [BACKUP_AND_RECOVERY.md](./BAC
 - `Database is not configured`: verify `DATABASE_URL` and restart the server.
 - Login succeeds but protected calls fail with CSRF errors: clear cookies for localhost, reload `/login`, and avoid mixing `localhost` with `127.0.0.1`.
 - Mentor unavailable: set `AI_API_KEY`, verify `AI_BASE_URL` ends at the provider's API root, and select a model the account can use.
-- Storage errors: verify the bucket already exists, credentials can get/put objects, and `S3_FORCE_PATH_STYLE=true` for MinIO.
 - Secure cookies behind a proxy: terminate TLS, forward `X-Forwarded-Proto: https`, and set `TRUST_PROXY=true` only for a proxy you control.
 
 ## Licensing and assets

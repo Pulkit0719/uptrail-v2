@@ -29,15 +29,12 @@
     "db:integrity": "tsx scripts/db-integrity.ts",
     "db:backup": "tsx scripts/db-backup.ts",
     "db:restore": "tsx scripts/db-restore.ts",
-    "storage:migrate": "tsx scripts/storage-migrate.ts",
     "config:check": "tsx scripts/check-config.ts --strict",
     "auth:find-user-id": "tsx scripts/find-user-id.ts",
     "auth:link-legacy:preflight": "tsx scripts/link-legacy-account.ts --preflight",
     "auth:link-legacy": "tsx scripts/link-legacy-account.ts --link"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1142.0",
-    "@aws-sdk/s3-request-presigner": "^3.1142.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

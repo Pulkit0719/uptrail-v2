@@ -3,7 +3,6 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -33,9 +32,12 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const configuration = validateConfiguration();
-  for (const warning of configuration.warnings) console.warn(`[Config] ${warning}`);
+  for (const warning of configuration.warnings)
+    console.warn(`[Config] ${warning}`);
   if (configuration.errors.length) {
-    throw new Error(`Invalid runtime configuration:\n- ${configuration.errors.join("\n- ")}`);
+    throw new Error(
+      `Invalid runtime configuration:\n- ${configuration.errors.join("\n- ")}`
+    );
   }
   const app = express();
   const server = createServer(app);
@@ -47,9 +49,14 @@ async function startServer() {
       "X-Frame-Options": "DENY",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
-      "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+      "Content-Security-Policy":
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
     });
-    if (ENV.isProduction && req.secure) res.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    if (ENV.isProduction && req.secure)
+      res.set(
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains"
+      );
     next();
   });
   app.use(express.json({ limit: "2mb" }));
@@ -57,14 +64,14 @@ async function startServer() {
   app.get("/healthz", async (_req, res) => {
     try {
       const db = await getDb();
-      if (!db) return res.status(503).json({ ok: false, database: "not configured" });
+      if (!db)
+        return res.status(503).json({ ok: false, database: "not configured" });
       await db.execute(sql`SELECT 1`);
       return res.json({ ok: true });
     } catch {
       return res.status(503).json({ ok: false, database: "unavailable" });
     }
   });
-  registerStorageProxy(app);
   app.get("/api/auth/csrf", async (req, res) => {
     try {
       await issueCsrfToken(req, res);
@@ -91,7 +98,9 @@ async function startServer() {
 
   const preferredPort = parseInt(process.env.PORT || "3000");
   const development = process.argv.includes("--dev");
-  const port = development ? await findAvailablePort(preferredPort) : preferredPort;
+  const port = development
+    ? await findAvailablePort(preferredPort)
+    : preferredPort;
 
   if (development && port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);

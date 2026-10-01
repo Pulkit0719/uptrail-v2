@@ -2,7 +2,7 @@
 
 ## Reference topology
 
-Run the immutable Uptrail container behind an HTTPS reverse proxy/load balancer. Attach it to independently managed MySQL 8 and a private S3-compatible bucket. Inject `DATABASE_URL`, `AI_*`, `S3_*`, `EMAIL_*`, and optional webhook values from a secret manager. Send application logs to stdout/stderr and monitor `GET /healthz`.
+Run the immutable Uptrail container behind an HTTPS reverse proxy/load balancer and attach it to independently managed MySQL 8. Inject `DATABASE_URL`, `AI_*`, `EMAIL_*`, and optional webhook values from a secret manager. No object-storage service or durable upload volume is required. Send application logs to stdout/stderr and monitor `GET /healthz`.
 
 For multiple app replicas, replace the process-local authentication limiter with a shared gateway/Redis-backed limiter. Sessions are already shared through MySQL.
 
@@ -51,22 +51,21 @@ For an existing Manus database, do not initialize an empty replacement with the 
 
 All old remote sessions become invalid at cutover because the independent server accepts only opaque sessions stored in `authSessions`.
 
-## Object-storage cutover
+## Storage-free deployment
 
-1. Inventory old object keys and persisted `/manus-storage/` URLs. Do not delete or rename the source.
-2. Create a private versioned/encrypted destination bucket and least-privilege application identity.
-3. Configure `SOURCE_S3_*` and destination `S3_*`; run `pnpm storage:migrate` in its default inventory-only mode.
-4. Review the JSON manifest, then set `STORAGE_MIGRATION_EXECUTE=true` and rerun.
-5. Require every object to match size and SHA-256. Open representative objects manually.
-6. Deploy and monitor storage 403/404 rates. Both `/storage/<key>` and the temporary authenticated legacy path resolve from the new bucket.
-7. Keep the source read-only through the retention window. Remove the compatibility route only in a separately approved release.
+The current schema contains no file URL/object-key columns, and the verified
+database contains no `/manus-storage/`, `/storage/`, S3, R2, MinIO, or file-like
+references. The current UI has no upload control or storage request. Do not
+provision a bucket or persistent upload volume for this release. Any future
+binary-file feature requires a separate design, threat model, persistence
+decision, and explicit approval.
 
 ## Secrets and network controls
 
 - Never bake `.env` into an image or commit it.
 - Rotate every credential ever exposed to the original runtime.
-- Permit MySQL and S3 access only from application/release networks.
-- Use HTTPS for public/provider traffic. `S3_ALLOW_INSECURE_HTTP=true` is only for an isolated internal network such as local Compose.
+- Permit MySQL access only from application/release networks.
+- Use HTTPS for public/provider traffic.
 - When one trusted proxy terminates TLS, forward `X-Forwarded-Proto` and set `TRUST_PROXY=true`; otherwise leave it false.
 - Separate application DML and migration DDL database identities where the platform supports it.
 
@@ -76,6 +75,6 @@ No active feature used the old scheduler, generic data/search API, or maps proxy
 
 ## Cutover and rollback
 
-Use PRODUCTION_CUTOVER.md for staging evidence, go/no-go gates, canary rollout, monitoring, and approval. Keep the previous image digest/configuration, final database backup, executed storage manifest, and DNS/load-balancer state.
+Use PRODUCTION_CUTOVER.md for staging evidence, go/no-go gates, canary rollout, monitoring, and approval. Keep the previous image digest/configuration, final database backup, and DNS/load-balancer state.
 
-For application failure, stop traffic shifting and restore the previous immutable image/config. Do not drop additive authentication tables during an incident. Restore the database only for demonstrated data-integrity failure, not ordinary application behavior. Never bulk-delete either object store during rollback.
+For application failure, stop traffic shifting and restore the previous immutable image/config. Do not drop additive authentication tables during an incident. Restore the database only for demonstrated data-integrity failure, not ordinary application behavior.
