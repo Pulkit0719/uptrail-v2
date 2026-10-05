@@ -15,6 +15,20 @@ docker push registry.example.com/uptrail:<git-sha>
 
 Pin deployments to an immutable digest or Git SHA, not `latest`. Run the same image in staging with staging-only credentials. The container listens on port 3000, runs as non-root, validates production configuration at startup, and drains connections on SIGTERM.
 
+## Free-tier cloud deployment (Render Blueprint)
+
+A turnkey `$0` deployment configuration is provided via [`render.yaml`](render.yaml):
+
+1. Connect the `Pulkit0719/uptrail-v2` GitHub repository in the [Render Dashboard](https://dashboard.render.com).
+2. Create a new **Blueprint** from the repository; Render automatically reads `render.yaml` with the `free` plan.
+3. In the Render service settings (Environment), supply the secret runtime variables:
+   - `DATABASE_URL`: Your Aiven MySQL 8.4 connection URI (`mysql://...`)
+   - `DATABASE_SSL_CA`: The full PEM certificate string from Aiven (avoids local disk file path dependencies in cloud containers)
+   - `AI_API_KEY`: Your OpenRouter API key (`sk-or-v1-...`)
+   - `APP_BASE_URL`: The generated Render service URL (e.g. `https://uptrail-v2.onrender.com`)
+4. Deploy the service. Render will run `pnpm install --frozen-lockfile && pnpm build` and start `pnpm start`.
+5. Verify health at `GET /healthz`.
+
 Before release:
 
 ```powershell
@@ -24,6 +38,7 @@ pnpm check
 pnpm test
 pnpm build
 pnpm audit --audit-level high
+pnpm ai:verify
 ```
 
 ## Database backup and migration

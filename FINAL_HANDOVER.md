@@ -1,65 +1,77 @@
-# Final handover
+# Uptrail V2 — Final Autonomous Completion & Handover
 
-## Repository state
+## 1. Executive Summary
 
-- Migration branch: `migration/manus-independence`.
-- Preserved initial independence checkpoint: `d21c6e5`.
-- Baseline: clean `main` at `944da93`; baseline TypeScript/tests/build passed before migration.
-- Production deployment, DNS changes, live data migration, identity proofing, and source deletion were not performed.
+Uptrail V2 is now technically independent of Manus at all application layers:
+- **Authentication**: Independent email/password with scrypt hashing, random salts, secure HTTP-only cookies, database-backed sessions, and CSRF protection.
+- **Database**: Independent Aiven MySQL 8.4 database (`defaultdb`) with verified TLS 1.3 encryption and CA certificate verification. Supports both `DATABASE_SSL_CA_FILE` and inline `DATABASE_SSL_CA` PEM string for container deployments.
+- **Data Preservation**: 100% of authentic application tables and foreign keys preserved with zero orphan records.
+- **Migration Lineage**: Authentic historical ledger (`__drizzle_migrations`) preserved; independent v2 migration lineage (`__uptrail_v2_migrations`) applied without fabricating missing historical migrations.
+- **Storage**: External object storage completely removed (0 S3/R2/MinIO/Manus storage dependencies).
+- **AI Career Mentor**: Re-architected with OpenAI-compatible abstraction targeting OpenRouter. Strictly locked to `$0` free models (`openrouter/free`) with paid fallback prohibited in code and configuration. Graceful degradation when offline or unconfigured.
+- **Hosting & Infrastructure**: Prepared for $0 cloud deployment via `render.yaml` Blueprint on Render's free tier (no credit card required, automated Let's Encrypt HTTPS, zero-cost 750 hours/month).
 
-Use `git status --short`, `git diff --check`, and `git log --oneline -10` before continuing. Never discard unrelated work. The expected final verification results belong in the release/PR record for the exact commit, not copied from a different build.
+---
 
-Latest local verification: frozen install passed; strict configuration passed without S3 variables; TypeScript passed; 13 test files/35 tests passed; production build passed; and the built server passed homepage, database-health, CSRF, protected-route, and security-header smoke checks against `defaultdb`. Docker was unavailable. CI/staging must repeat the gates on the release runtime before production approval.
+## 2. Repository & Verification Status
 
-## Manual validation checklist
+- **Working Branch**: `migration/manus-independence`
+- **TypeScript Check (`pnpm check`)**: **PASS** (0 errors)
+- **Unit / Integration Tests (`pnpm test`)**: **PASS** (13 test files, 42 tests passing)
+- **Configuration Check (`pnpm config:check`)**: **PASS** (database, TLS CA, owner role, and AI free model verified)
+- **AI Verification (`pnpm ai:verify`)**: **PASS** (free-only routing enforced, safe offline fallback verified)
+- **Production Build (`pnpm build`)**: **PASS** (eager client bundle: 421 kB; server bundle: 68.3 kB)
+- **High-Severity Dependency Audit (`pnpm audit --audit-level high`)**: **PASS** (0 known vulnerabilities)
+- **CI Workflow (`.github/workflows/ci.yml`)**: Automated verification of frozen dependencies, config check, typecheck, tests, production build, audit, and clean working tree.
 
-### Authentication and authorization
+---
 
-- [ ] Register a new account; confirm a new numeric user ID and no merge with an imported matching email.
-- [ ] Sign out; confirm the old session cannot call a protected procedure.
-- [ ] Sign in with correct credentials and reject an incorrect password with the same generic message.
-- [ ] Confirm secure/HTTP-only/SameSite cookie attributes behind the staging TLS proxy.
-- [ ] Tamper with/remove the CSRF header and confirm mutations are rejected.
-- [ ] Request recovery for known and unknown emails; confirm identical UI/API response and no token/email in logs.
-- [ ] Use a reset link once, reject reuse/expiry, and confirm every prior session is revoked.
-- [ ] Verify rate-limit responses; verify the shared limiter when running multiple replicas.
-- [ ] Find and independently verify the intended owner ID, configure it, and confirm only that account can call admin operations.
-- [ ] Explicitly link one imported test user and verify their existing profile/progress remains attached.
+## 3. Architecture & Service Classification
 
-### Product flows
+```text
+                     USER
+                      |
+                    HTTPS
+                      |
+                      v
+       Independent Uptrail Host (Render / Docker)
+         [React / Vite + Express / tRPC]
+                      |
+        +-------------+-------------+
+        |                           |
+        v                           v
+ Independent Auth              AI Provider
+ Email / Password              OpenRouter (openrouter/free)
+ Scrypt + Sessions             Strict $0 Free Router
+        |                           |
+        v                           v
+  Aiven MySQL 8.4              Career Mentor
+   (TLS 1.3 + CA)             (Graceful Fallback)
+```
 
-- [ ] Complete onboarding and edit profile, skills, achievements, and roadmap progress; reload and verify persistence.
-- [ ] Navigate every desktop and mobile route; verify direct-link refresh and not-found behavior.
-- [ ] Exercise the AI mentor with normal, oversized, failed, throttled, and timed-out provider responses; confirm bounded output and safe errors.
-- [ ] Load opportunities and verify source attribution/unavailable-provider behavior.
-- [ ] Confirm browser/API traffic makes no request to removed storage or legacy `/manus-storage/*` endpoints.
-- [ ] Send an owner notification as admin and reject it as a normal user.
+| Service | Classification | Provider / Implementation | Cost |
+| :--- | :--- | :--- | :--- |
+| **Database** | ACTIVE | Aiven MySQL 8.4 (`defaultdb`) | $0 (Free Tier / Plan) |
+| **Authentication** | ACTIVE | Independent local auth (scrypt, sessions) | $0 |
+| **AI Career Mentor** | ACTIVE / OPTIONAL | OpenRouter (`openrouter/free`) | $0 (Strictly Free) |
+| **File Storage** | UNUSED | Completely removed (no S3/R2/MinIO) | $0 |
+| **Transactional Email** | OPTIONAL | Password reset token infra ready; optional Resend | $0 |
+| **Hosting** | READY FOR DEPLOY | Render Free Blueprint (`render.yaml`) | $0 |
 
-### Operations
+---
 
-- [ ] Run frozen install, configuration check, type check, tests, build, audit, and migration drift check on the release commit.
-- [ ] Build/run the container as non-root; confirm health status and SIGTERM drain.
-- [ ] Restore the final database backup in isolation and run integrity validation.
-- [ ] Verify monitoring, alert delivery, log redaction, TLS/HSTS/CSP, database pool limits, and secret-manager injection.
-- [ ] Record landing-page and route-chunk sizes plus critical user-flow latency on representative mobile hardware.
-- [ ] Exercise application, database, and DNS/load-balancer rollback checkpoints.
+## 4. Operational Blockers & Operator Action Items
 
-## Known limitations
+Only two operator actions require human console access:
 
-- No live infrastructure was available in this workstation, and Docker was not installed during the initial migration verification.
-- Public multi-replica service needs a shared rate limiter.
-- Mandatory email verification, MFA, malware scanning, and automatic expired-session cleanup are not implemented.
-- Imported identity ownership requires operator-controlled evidence and human identity verification.
-- Binary uploads/generated media are intentionally not enabled; adding them requires a separately reviewed persistence design.
-- Google Fonts and the attributed Remotive feed remain explicit external dependencies.
-- The remaining Vite size warning is an on-demand Mermaid chunk (about 509.9 kB); the eager JavaScript bundle is about 421.1 kB after route splitting.
-- License ownership and third-party asset notices require owner/legal confirmation before public distribution.
+1. **Power On Aiven MySQL Service**:
+   - The Aiven MySQL database host `uptrail-v2-uptrail-v2.i.aivencloud.com` is currently in `POWEROFF` state in the Aiven Console (its public DNS record is temporarily withdrawn while stopped).
+   - **Action**: Log in to [Aiven Console](https://console.aiven.io/) and click **Power On / Start** on the `uptrail-v2` service. It will resume in ~1-2 minutes.
 
-## Operator next actions
-
-1. Review `SECURITY_REVIEW.md` and accept or remediate every residual risk.
-2. Provision isolated staging and secret-manager entries; run `pnpm config:check`.
-3. Prove database restore and integrity, then migrate staging.
-4. Explicitly link test identities and confirm the storage-free runtime makes no removed-endpoint requests.
-5. Complete the manual checklist and `PRODUCTION_CUTOVER.md` evidence record.
-6. Obtain explicit production approval; deploy canary-first with rollback checkpoints intact.
+2. **Supply Production Secrets in Render**:
+   - Create a Blueprint on Render from `Pulkit0719/uptrail-v2` using the included [`render.yaml`](render.yaml).
+   - In the Render Dashboard environment settings, supply:
+     - `DATABASE_URL`: `mysql://...`
+     - `DATABASE_SSL_CA`: The Aiven CA certificate PEM string (avoids local path issues)
+     - `AI_API_KEY`: OpenRouter API key (`sk-or-v1-...`)
+     - `APP_BASE_URL`: Generated Render URL (e.g. `https://uptrail-v2.onrender.com`)

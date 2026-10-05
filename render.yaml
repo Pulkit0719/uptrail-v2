@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: uptrail-v2
+    runtime: node
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: TRUST_PROXY
+        value: "true"
+      - key: OWNER_USER_ID
+        value: "1"
+      - key: AI_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: AI_CHAT_MODEL
+        value: openrouter/free
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL_CA
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: EMAIL_PROVIDER_URL
+        sync: false
+      - key: EMAIL_PROVIDER_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

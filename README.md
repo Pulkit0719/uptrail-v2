@@ -99,7 +99,7 @@ The important controls are:
 | Area           | Variables                                                                               |
 | -------------- | --------------------------------------------------------------------------------------- |
 | Runtime        | `PORT`, `APP_BASE_URL`, `TRUST_PROXY`, `OWNER_USER_ID`                                  |
-| Database       | `DATABASE_URL`, `DATABASE_POOL_SIZE`, optional `DATABASE_SSL_CA_FILE` for a provider CA |
+| Database       | `DATABASE_URL`, `DATABASE_POOL_SIZE`, optional `DATABASE_SSL_CA_FILE` or inline `DATABASE_SSL_CA` for a provider CA |
 | AI             | `AI_BASE_URL`, `AI_API_KEY`, `AI_CHAT_MODEL`, timeout/retry/output-token limits         |
 | Recovery email | `EMAIL_PROVIDER_URL`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, reset-token TTL           |
 | Notifications  | `NOTIFICATION_WEBHOOK_URL`                                                              |
