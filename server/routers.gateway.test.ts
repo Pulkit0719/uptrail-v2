@@ -21,7 +21,10 @@ import type { TrpcContext } from "./_core/context";
 
 function context(): TrpcContext {
   return {
-    user: { id: 77, openId: "gateway-user", name: "Gateway User", email: "gateway@example.com", loginMethod: "manus", role: "user", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() },
+    user: { id: 77, openId: "gateway-user", name: "Gateway User", email: "gateway@example.com", loginMethod: "password", role: "user", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() },
+    sessionId: "test-session",
+    csrfValid: true,
+    anonymousCsrfValid: true,
     req: { protocol: "https", headers: {} } as TrpcContext["req"],
     res: { clearCookie: vi.fn() } as unknown as TrpcContext["res"],
   };

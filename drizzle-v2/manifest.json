@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "ledgerTable": "__uptrail_v2_migrations",
+  "source": "verified legacy Uptrail database import",
+  "migrations": [
+    {
+      "name": "0000_imported_legacy_baseline",
+      "file": "0000_imported_legacy_baseline.sql",
+      "timestamp": 1790790000000,
+      "kind": "baseline",
+      "sha256": "e1e25ea58359ba872ff6366450ff1667bff7241e956329c2ba1e9bccd1964c1d"
+    },
+    {
+      "name": "0001_add_independent_auth",
+      "file": "0001_add_independent_auth.sql",
+      "timestamp": 1790790060000,
+      "kind": "sql",
+      "sha256": "dad33ab996adaa021f6463c7b1a05b4754285448f4cfcca2211ee284cee02c37"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { boolean, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { boolean, char, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -11,6 +11,45 @@ export const users = mysqlTable("users", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
+
+// Local credentials are deliberately separate from the legacy `users.email`
+// field. A matching email never silently merges an independently registered
+// account into an imported account.
+export const authCredentials = mysqlTable("authCredentials", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  emailNormalized: varchar("emailNormalized", { length: 320 }).notNull().unique(),
+  passwordHash: varchar("passwordHash", { length: 128 }).notNull(),
+  passwordSalt: varchar("passwordSalt", { length: 64 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const authSessions = mysqlTable("authSessions", {
+  id: char("id", { length: 36 }).primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: char("tokenHash", { length: 64 }).notNull().unique(),
+  csrfHash: char("csrfHash", { length: 64 }).notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  revokedAt: timestamp("revokedAt"),
+  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("authSessions_user_idx").on(table.userId),
+  index("authSessions_expiry_idx").on(table.expiresAt),
+]);
+
+export const passwordResetTokens = mysqlTable("passwordResetTokens", {
+  id: char("id", { length: 36 }).primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: char("tokenHash", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  usedAt: timestamp("usedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("passwordResetTokens_user_idx").on(table.userId),
+  index("passwordResetTokens_expiry_idx").on(table.expiresAt),
+]);
 
 export const learnerProfiles = mysqlTable("learnerProfiles", {
   id: int("id").autoincrement().primaryKey(),
@@ -65,11 +104,43 @@ export const learnerAchievements = mysqlTable("learnerAchievements", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => [index("learnerAchievements_user_created_idx").on(table.userId, table.createdAt)]);
 
+// Imported legacy assessment tables. These definitions intentionally mirror
+// the restored schema so future schema tooling does not treat valid data as
+// unmanaged or disposable. The v2 imported baseline never creates them.
+export const careerAssessmentAttempts = mysqlTable("careerAssessmentAttempts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  answersJson: text("answersJson").notNull(),
+  recommendationsJson: text("recommendationsJson").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("careerAssessmentAttempts_userId_users_id_fk").on(table.userId),
+  index("careerAssessmentAttempts_user_created_idx").on(table.userId, table.createdAt),
+]);
+
+export const skillAssessmentAttempts = mysqlTable("skillAssessmentAttempts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  skillName: varchar("skillName", { length: 120 }).notNull(),
+  answersJson: text("answersJson").notNull(),
+  score: int("score").notNull(),
+  breakdownJson: text("breakdownJson").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("skillAssessmentAttempts_userId_users_id_fk").on(table.userId),
+  index("skillAssessmentAttempts_user_skill_created_idx").on(table.userId, table.skillName, table.createdAt),
+]);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+export type AuthCredential = typeof authCredentials.$inferSelect;
+export type AuthSession = typeof authSessions.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type LearnerProfile = typeof learnerProfiles.$inferSelect;
 export type InsertLearnerProfile = typeof learnerProfiles.$inferInsert;
 export type LearnerSkillRecord = typeof learnerSkills.$inferSelect;
 export type InsertLearnerSkill = typeof learnerSkills.$inferInsert;
 export type RoadmapProgress = typeof roadmapProgress.$inferSelect;
 export type LearnerAchievement = typeof learnerAchievements.$inferSelect;
+export type CareerAssessmentAttempt = typeof careerAssessmentAttempts.$inferSelect;
+export type SkillAssessmentAttempt = typeof skillAssessmentAttempts.$inferSelect;

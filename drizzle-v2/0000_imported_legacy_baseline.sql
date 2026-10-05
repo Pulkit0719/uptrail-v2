@@ -1,0 +1,5 @@
+-- Verification-only baseline for databases imported from the legacy Uptrail schema.
+-- This migration intentionally contains no executable SQL and never creates,
+-- alters, or drops the seven imported application tables or legacy ledger.
+-- The guarded v2 runner verifies their exact tables, counts, foreign keys,
+-- orphan state, and authentic 0000 legacy ledger before recording this marker.
