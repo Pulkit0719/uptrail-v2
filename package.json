@@ -30,6 +30,7 @@
     "db:backup": "tsx scripts/db-backup.ts",
     "db:restore": "tsx scripts/db-restore.ts",
     "config:check": "tsx scripts/check-config.ts --strict",
+    "ai:verify": "tsx scripts/ai-verify.ts",
     "auth:find-user-id": "tsx scripts/find-user-id.ts",
     "auth:link-legacy:preflight": "tsx scripts/link-legacy-account.ts --preflight",
     "auth:link-legacy": "tsx scripts/link-legacy-account.ts --link"

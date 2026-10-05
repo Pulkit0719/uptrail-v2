@@ -40,17 +40,18 @@ export function parseDatabaseUrl(value: string): ParsedDatabaseUrl {
 export function loadDatabaseSslOptions(
   database: ParsedDatabaseUrl,
   caFile = process.env.DATABASE_SSL_CA_FILE,
+  caDirect = process.env.DATABASE_SSL_CA,
 ): SslOptions | undefined {
-  if (!database.sslMode && !caFile) return undefined;
+  if (!database.sslMode && !caFile && !caDirect) return undefined;
 
   let ca: string | undefined;
   try {
-    ca = caFile ? readFileSync(resolve(caFile), "utf8") : undefined;
+    ca = caDirect || (caFile ? readFileSync(resolve(caFile), "utf8") : undefined);
   } catch {
     throw new Error("DATABASE_SSL_CA_FILE could not be read");
   }
-  if (caFile && !ca?.includes("BEGIN CERTIFICATE")) {
-    throw new Error("DATABASE_SSL_CA_FILE must contain a PEM certificate");
+  if ((caFile || caDirect) && !ca?.includes("BEGIN CERTIFICATE")) {
+    throw new Error("DATABASE_SSL_CA must contain a PEM certificate");
   }
 
   return {
@@ -63,6 +64,7 @@ export function loadDatabaseSslOptions(
 export function getDatabaseConnectionOptions(
   databaseUrl: string,
   caFile = process.env.DATABASE_SSL_CA_FILE,
+  caDirect = process.env.DATABASE_SSL_CA,
 ): ConnectionOptions {
   const database = parseDatabaseUrl(databaseUrl);
   return {
@@ -71,7 +73,7 @@ export function getDatabaseConnectionOptions(
     user: database.user,
     password: database.password,
     database: database.database,
-    ssl: loadDatabaseSslOptions(database, caFile),
+    ssl: loadDatabaseSslOptions(database, caFile, caDirect),
   };
 }
 

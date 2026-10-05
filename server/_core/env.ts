@@ -16,14 +16,15 @@ export const isValidOwnerUserId = (value: number | undefined) =>
 export const ENV = {
   databaseUrl: process.env.DATABASE_URL ?? "",
   databaseSslCaFile: process.env.DATABASE_SSL_CA_FILE ?? "",
+  databaseSslCa: process.env.DATABASE_SSL_CA ?? "",
   ownerUserId: parseOwnerUserId(process.env.OWNER_USER_ID),
   isProduction: process.env.NODE_ENV === "production",
   appBaseUrl: process.env.APP_BASE_URL ?? "http://localhost:3000",
   trustProxy: process.env.TRUST_PROXY === "true",
   databasePoolSize: positiveInteger(process.env.DATABASE_POOL_SIZE, 10),
-  aiBaseUrl: process.env.AI_BASE_URL ?? "https://api.openai.com/v1",
+  aiBaseUrl: process.env.AI_BASE_URL ?? "https://openrouter.ai/api/v1",
   aiApiKey: process.env.AI_API_KEY ?? "",
-  aiChatModel: process.env.AI_CHAT_MODEL ?? "gpt-5-mini",
+  aiChatModel: process.env.AI_CHAT_MODEL ?? "openrouter/free",
   aiRequestTimeoutMs: positiveInteger(
     process.env.AI_REQUEST_TIMEOUT_MS,
     30_000
@@ -93,6 +94,19 @@ export function validateConfiguration(
     errors.push(
       "AI_BASE_URL must be a valid URL and must use HTTPS in production."
     );
+  }
+  try {
+    const aiUrl = new URL(ENV.aiBaseUrl);
+    if (
+      aiUrl.hostname.toLowerCase() === "openrouter.ai" &&
+      ENV.aiChatModel !== "openrouter/free"
+    ) {
+      errors.push(
+        "AI_CHAT_MODEL must be openrouter/free when AI_BASE_URL uses OpenRouter; paid fallback is disabled."
+      );
+    }
+  } catch {
+    // The URL validation above provides the actionable configuration error.
   }
   const emailValues = [
     ENV.emailProviderUrl,

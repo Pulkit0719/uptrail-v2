@@ -9,6 +9,7 @@ import { invokeLLM } from "./_core/llm";
 afterEach(() => {
   setAIProviderForTests(undefined);
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe("independent service abstractions", () => {
@@ -54,5 +55,83 @@ describe("independent service abstractions", () => {
     });
     expect(result.choices[0]?.message.content).toBe("ok");
     expect(provider.request).toHaveBeenCalled();
+  });
+
+  it("surfaces an invalid-key response without retrying it", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 401 }));
+    setAIProviderForTests(
+      new OpenAICompatibleProvider(
+        "https://openrouter.ai/api/v1",
+        "invalid-test-key",
+        { chat: "openrouter/free" }
+      )
+    );
+
+    await expect(
+      invokeLLM({ messages: [{ role: "user", content: "hello" }] })
+    ).rejects.toThrow("LLM invoke failed (401)");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([429, 503])(
+    "retries a retryable provider status and then fails safely (%s)",
+    async status => {
+      vi.useFakeTimers();
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+        async () =>
+          new Response(null, {
+            status,
+            headers: { "retry-after": "0" },
+          })
+      );
+      const provider = new OpenAICompatibleProvider(
+        "https://openrouter.ai/api/v1",
+        "test-key",
+        { chat: "openrouter/free" }
+      );
+
+      const pending = provider.request("chat/completions");
+      await vi.runAllTimersAsync();
+      await expect(pending).resolves.toMatchObject({ status });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    }
+  );
+
+  it("times out an unavailable provider", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_input, init) =>
+        new Promise((_resolve, reject) => {
+          const signal = init?.signal;
+          const rejectAbort = () =>
+            reject(signal?.reason ?? new Error("request aborted"));
+          if (signal?.aborted) rejectAbort();
+          else signal?.addEventListener("abort", rejectAbort, { once: true });
+        })
+    );
+    const provider = new OpenAICompatibleProvider(
+      "https://openrouter.ai/api/v1",
+      "test-key",
+      { chat: "openrouter/free" }
+    );
+
+    const assertion = expect(provider.request("models")).rejects.toThrow(
+      "AI provider request timed out"
+    );
+    await vi.runAllTimersAsync();
+    await assertion;
+  });
+
+  it("rejects a malformed provider response", async () => {
+    setAIProviderForTests({
+      model: () => "openrouter/free",
+      request: vi.fn(async () => Response.json({ unexpected: true })),
+    });
+
+    await expect(
+      invokeLLM({ messages: [{ role: "user", content: "hello" }] })
+    ).rejects.toThrow("AI provider returned an invalid chat response");
   });
 });

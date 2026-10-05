@@ -7,7 +7,7 @@ Uptrail is a React/Vite career-navigation client backed by Express, tRPC, Drizzl
 - Node.js 20.19+ or 22.12+
 - pnpm 10.4.1 (Corepack can install the pinned version)
 - MySQL 8+
-- An OpenAI-compatible API key for the AI mentor; the rest of the app can run without it
+- An OpenRouter API key for the AI mentor; the rest of the app can run without it
 
 ## Windows / VS Code setup
 
@@ -21,7 +21,9 @@ pnpm dev
 Edit `.env` before starting. At minimum, set `DATABASE_URL`. Imported databases
 must use the guarded v2 workflow in `BACKUP_AND_RECOVERY.md`; never run the
 legacy migration journal or `drizzle-kit push` against imported data. Configure
-`AI_API_KEY` before using the mentor. Open `http://localhost:3000`.
+`AI_API_KEY` before using the mentor. The checked-in example uses only the
+`openrouter/free` router and has no paid-model fallback. Open
+`http://localhost:3000`.
 
 The `dev` command starts the Express API and Vite middleware together. The production flow is:
 
@@ -98,7 +100,7 @@ The important controls are:
 | -------------- | --------------------------------------------------------------------------------------- |
 | Runtime        | `PORT`, `APP_BASE_URL`, `TRUST_PROXY`, `OWNER_USER_ID`                                  |
 | Database       | `DATABASE_URL`, `DATABASE_POOL_SIZE`, optional `DATABASE_SSL_CA_FILE` for a provider CA |
-| AI             | `AI_BASE_URL`, `AI_API_KEY`, model names, timeout/retry/output-token limits             |
+| AI             | `AI_BASE_URL`, `AI_API_KEY`, `AI_CHAT_MODEL`, timeout/retry/output-token limits         |
 | Recovery email | `EMAIL_PROVIDER_URL`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, reset-token TTL           |
 | Notifications  | `NOTIFICATION_WEBHOOK_URL`                                                              |
 
@@ -108,7 +110,7 @@ See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [BACKUP_AND_RECOVERY.md](./BAC
 
 - `Database is not configured`: verify `DATABASE_URL` and restart the server.
 - Login succeeds but protected calls fail with CSRF errors: clear cookies for localhost, reload `/login`, and avoid mixing `localhost` with `127.0.0.1`.
-- Mentor unavailable: set `AI_API_KEY`, verify `AI_BASE_URL` ends at the provider's API root, and select a model the account can use.
+- Mentor unavailable: set `AI_API_KEY`, verify `AI_BASE_URL` is `https://openrouter.ai/api/v1`, and keep `AI_CHAT_MODEL=openrouter/free`. Uptrail fails visibly instead of selecting a paid fallback.
 - Secure cookies behind a proxy: terminate TLS, forward `X-Forwarded-Proto: https`, and set `TRUST_PROXY=true` only for a proxy you control.
 
 ## Licensing and assets

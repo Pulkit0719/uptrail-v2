@@ -10,7 +10,7 @@ let pool: Pool | null = null;
 export async function getDb() {
   if (!database && ENV.databaseUrl) {
     pool = createPool({
-      ...getDatabaseConnectionOptions(ENV.databaseUrl, ENV.databaseSslCaFile),
+      ...getDatabaseConnectionOptions(ENV.databaseUrl, ENV.databaseSslCaFile, ENV.databaseSslCa),
       connectionLimit: ENV.databasePoolSize,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,

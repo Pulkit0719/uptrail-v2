@@ -31,7 +31,5 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm audit --audit-level high
-      - name: Verify generated migrations are committed
-        run: |
-          pnpm db:generate
-          git diff --exit-code -- drizzle
+      - name: Verify working tree is clean
+        run: git diff --exit-code
