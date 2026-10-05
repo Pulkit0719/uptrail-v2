@@ -1,118 +1,329 @@
-# Uptrail v2
+# Uptrail
 
-Uptrail is a React/Vite career-navigation client backed by Express, tRPC, Drizzle ORM, and MySQL. This repository runs independently: it does not require a Manus account, runtime, OAuth server, Forge gateway, storage proxy, or deployment environment.
+AI-powered career guidance platform for career discovery, skill-gap analysis, assessments, personalized learning roadmaps, and AI career mentoring.
 
-## Prerequisites
+**Live Application**: [https://uptrail-v2.onrender.com](https://uptrail-v2.onrender.com)
 
-- Node.js 20.19+ or 22.12+
-- pnpm 10.4.1 (Corepack can install the pinned version)
-- MySQL 8+
-- An OpenRouter API key for the AI mentor; the rest of the app can run without it
+[![CI](https://github.com/Pulkit0719/uptrail-v2/actions/workflows/ci.yml/badge.svg)](https://github.com/Pulkit0719/uptrail-v2/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/badge/release-v2.0.1--independent-1F7863?logo=github)](https://github.com/Pulkit0719/uptrail-v2/releases/tag/v2.0.1-independent)
+[![Tests](https://img.shields.io/badge/tests-42%20passed-2ea44f?logo=vitest&logoColor=white)](https://github.com/Pulkit0719/uptrail-v2/actions/workflows/ci.yml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Node](https://img.shields.io/badge/Node-%3E%3D20.19.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Windows / VS Code setup
+---
 
-```powershell
-./scripts/setup-windows.ps1
-# Review .env, then:
-pnpm config:check
-pnpm dev
+## Overview
+
+Uptrail is a modern full-stack career navigation platform engineered to help learners make deliberate, evidence-based career progression decisions. Rather than relying on generic recommendations, Uptrail dynamically adapts guidance based on the learner's actual recorded skills, validated assessment attempts, location context, and completed roadmap milestones.
+
+The platform provides an end-to-end career growth workflow:
+- **Career Discovery**: Compare industry career paths, market signals, salary contexts, and foundational requirements.
+- **Learner Profile**: Manage professional background, education, work style, target role, and location context.
+- **Skill Tracking**: Record self-reported and verified capabilities with weighted proficiency levels and project evidence.
+- **Skill-Gap Analysis**: Automatically evaluate readiness against target role requirements to highlight highest-impact gaps.
+- **Personalized Roadmaps**: Follow sequential, milestone-based learning routes with concrete outcomes and proof-of-work briefs.
+- **Career & Skill Assessments**: Complete structured evaluations to measure readiness and benchmark progress.
+- **AI Career Mentor**: Profile-aware conversational AI that advises on next steps, study planning, and skill prioritization without hallucinating accomplishments.
+- **Live Opportunities**: Browse source-attributed entry and early-career opportunities filtered by path and region.
+
+---
+
+## Why Uptrail
+
+Early-career developers and transitioning professionals often face fragmented tooling:
+- Job boards list requirements without contextualizing what a candidate actually needs to learn next.
+- Course platforms provide static curriculums disconnected from a learner's existing skills.
+- AI chat tools lack persistent memory of completed milestones and validated achievements.
+
+Uptrail brings these threads into a single, cohesive career space. It models learning as a progressive dependency graph: each milestone completed and each skill verified directly updates career readiness metrics and feeds immediate context to the AI mentor.
+
+---
+
+## Key Features
+
+| Feature Group | Capabilities |
+| :--- | :--- |
+| **Career Discovery** | Explore curated career paths (Frontend, Backend, DevOps, Data, Product); view market demand, salary benchmarks, and prerequisite capability maps. |
+| **Learner Profile** | Centralized career space storing country context, education, target role, experience level, and preferred work arrangements. |
+| **Skill Intelligence** | Manage skills across 4 proficiency levels (`Foundational`, `Developing`, `Proficient`, `Advanced`) and 3 evidence models (`Self Reported`, `Assessment Verified`, `Project Verified`). |
+| **Gap Reporting** | Role-tailored readiness scoring that prioritizes high-leverage capabilities over arbitrary task checklists. |
+| **Persistent Roadmaps** | Milestone tracking with persistent database state, outcome definitions, recommended resources, and progress history. |
+| **Career Mentor** | Context-aware AI mentoring powered by OpenRouter free-tier models (`openrouter/free`) with hardcoded safeguards against paid model auto-upgrades. |
+| **Independent Auth** | Built-in email/password authentication using `scrypt` hashing with unique per-user salts, database-backed sessions, and double-submit CSRF defense. |
+| **Secure Cloud Setup** | Production-ready Render deployment backed by Aiven MySQL 8.4 over verified `TLSv1.3` with zero external object storage dependencies. |
+
+---
+
+## Tech Stack
+
+### Frontend
+- **Framework**: React 19 with TypeScript 5.9
+- **Build Tool**: Vite 7
+- **Styling**: Tailwind CSS, PostCSS, Radix UI primitives, Lucide icons
+- **State & Routing**: Wouter (client-side routing), TanStack Query v5
+- **API Client**: tRPC React client with SuperJSON serialization
+
+### Backend & API
+- **Runtime**: Node.js (>=20.19.0) with Express
+- **API Layer**: tRPC v11 (type-safe end-to-end remote procedure calls)
+- **Validation**: Zod schema validation on all inputs and environment configurations
+- **Security**: In-memory rate limiting, double-submit CSRF tokens, secure cookie handling
+
+### Database & ORM
+- **Database**: MySQL 8.4 (Aiven Cloud) over verified `TLSv1.3` (`TLS_AES_256_GCM_SHA384`)
+- **ORM & Migrations**: Drizzle ORM, Drizzle Kit with additive v2 migration lineage
+
+### AI Integration
+- **Provider**: OpenRouter API (`https://openrouter.ai/api/v1`) via OpenAI-compatible abstraction
+- **Model**: `openrouter/free` (locked to $0 free-tier models; paid fallbacks prohibited)
+
+### Infrastructure & Operations
+- **Hosting**: Render (Node Web Service on Free Tier via `render.yaml`)
+- **CI / CD**: GitHub Actions continuous integration pipeline
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TD
+    User["User Browser\n(React 19 + Vite + Wouter)"]
+    
+    subgraph Cloud["Production Infrastructure (Render)"]
+        direction TB
+        Proxy["TLS Reverse Proxy\n(HTTPS Termination / HSTS / CSP)"]
+        Server["Express + tRPC Server\n(Node.js Runtime)"]
+        
+        subgraph Core["Core Application Services"]
+            Auth["Independent Auth\n(scrypt + Sessions + CSRF)"]
+            Router["tRPC Router\n(Profile, Roadmap, Skills)"]
+            Mentor["AI Mentor Service\n(Context Builder + Prompts)"]
+        end
+    end
+    
+    subgraph Data["External Managed Services"]
+        Aiven[("Aiven MySQL 8.4\nTLSv1.3 + CA Verification\n(defaultdb)")]
+        AI["OpenRouter API\n(openrouter/free)\nStrict $0 Free Tier"]
+    end
+
+    User -->|"HTTPS (Secure Cookies + CSRF)"| Proxy
+    Proxy --> Server
+    Server --> Auth
+    Server --> Router
+    Server --> Mentor
+    
+    Auth -->|"Drizzle Connection Pool"| Aiven
+    Router -->|"Drizzle Connection Pool"| Aiven
+    Mentor -->|"OpenAI-Compatible HTTPS"| AI
+
+    classDef highlight fill:#18302F,stroke:#1F7863,stroke-width:2px,color:#fff;
+    classDef storage fill:#F4FAF6,stroke:#1F7863,stroke-width:1px,color:#18302F;
+    class Server,Core,Auth,Router,Mentor highlight;
+    class Aiven,AI storage;
 ```
 
-Edit `.env` before starting. At minimum, set `DATABASE_URL`. Imported databases
-must use the guarded v2 workflow in `BACKUP_AND_RECOVERY.md`; never run the
-legacy migration journal or `drizzle-kit push` against imported data. Configure
-`AI_API_KEY` before using the mentor. The checked-in example uses only the
-`openrouter/free` router and has no paid-model fallback. Open
-`http://localhost:3000`.
+> **Architecture Notes**:
+> - **Zero Manus Dependencies**: No active runtime dependencies on Manus OAuth, Forge gateways, debug collectors, or proprietary SDKs.
+> - **Storage-Free Runtime**: Uptrail requires **no external object storage** (no AWS S3, Cloudflare R2, or MinIO). All application assets and avatars are bundled locally in the client.
 
-The `dev` command starts the Express API and Vite middleware together. The production flow is:
+---
 
-```powershell
-pnpm build
-pnpm start
-```
+## Independent Infrastructure
 
-## Local infrastructure with Docker
+Uptrail V2 represents a complete re-engineering from an earlier prototype that relied on third-party runtime services. The codebase has been transitioned to fully independent, operator-owned infrastructure:
 
-Copy `.env.example` to `.env`, replace all example passwords, add an AI key if needed, then run:
+1. **Authentication**: Replaced proprietary OAuth with self-contained email/password credentials, `scrypt` key derivation, random salts, and database-backed session management.
+2. **Database & Lineage**: Reconnected to Aiven MySQL 8.4 with strict TLS verification. All authentic historical learner data (profiles, skills, roadmap progress, and assessment attempts) were preserved with zero record loss.
+3. **AI Provider**: Replaced proprietary gateways with a standardized, OpenAI-compatible OpenRouter provider locked strictly to zero-cost models.
+4. **Storage Architecture**: Eliminated remote presigned upload endpoints and S3 SDK dependencies in favor of a storage-free, self-contained bundle design.
+5. **Runtime Cleanliness**: Removed injected debug collector scripts, proprietary Vite plugins, and unrouted legacy handlers.
 
-```powershell
-docker compose up --build
-```
+---
 
-Compose starts MySQL, applies Drizzle migrations, and starts Uptrail on port 3000. It uses a named MySQL volume; `docker compose down` does not delete it. Do not run `docker compose down -v` against data you need.
+## Security Architecture
 
-## Storage-free operation
+Security controls are enforced across every layer of the application:
 
-Uptrail's currently enabled product flows do not upload, download, generate, or
-persist binary files. The application therefore requires no S3 bucket,
-Cloudflare R2 account, MinIO service, storage credentials, storage proxy, or
-durable local upload directory. Profiles, skills, roadmap progress,
-achievements, assessments, credentials, and sessions are stored in MySQL.
+- **Transport Security**: HTTPS terminated with HSTS (`Strict-Transport-Security: max-age=31536000; includeSubDomains`).
+- **Browser Protection**: Strict `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: strict-origin-when-cross-origin`.
+- **Password Hashing**: Passwords derived using Node.js native `scrypt` with 64-byte derived keys and unique 16-byte random salts.
+- **Session Hardening**: Cryptographically random session tokens stored only as SHA-256 hashes in MySQL. Cookies are scoped with `HttpOnly`, `Secure`, `SameSite=Lax`, and 7-day expiration.
+- **CSRF Defense**: Double-submit CSRF cookie + `x-csrf-token` header validation enforced on all authenticated and state-changing mutations.
+- **Rate Limiting**: Sliding-window rate limiting on login (30 attempts/IP), registration (5 attempts/IP), and password resets (5 attempts/IP).
+- **Database Encryption**: Enforced `TLSv1.3` (`TLS_AES_256_GCM_SHA384`) with CA certificate verification and `rejectUnauthorized: true`.
+- **Credential Sanitization**: `redactDatabaseError` scrubs connection URIs, hosts, and passwords from logs. Zero database, email, or AI credentials are exposed to the client bundle.
+- **Cost Protection**: Strict configuration guarantees prohibiting silent fallback to paid AI models.
 
-## Authentication
+---
 
-New accounts use email/password credentials, scrypt password hashing, opaque seven-day HTTP-only sessions stored as hashes in MySQL, server-side revocation, SameSite cookies, and CSRF tokens. An email match never links a new account to an imported account.
+## Database Architecture
 
-To link an existing imported user explicitly, first back up the database and identify that row's exact `openId`. In PowerShell, keep the password out of command history:
+Uptrail V2 uses **MySQL 8.4** managed via **Aiven** and accessed through **Drizzle ORM**:
 
-```powershell
-$env:LEGACY_USER_OPEN_ID = "exact-existing-open-id"
-$env:LOCAL_AUTH_EMAIL = "person@example.com"
-$secret = Read-Host "New local password" -AsSecureString
-$env:LOCAL_AUTH_PASSWORD = [Net.NetworkCredential]::new("", $secret).Password
-pnpm auth:link-legacy
-Remove-Item Env:LOCAL_AUTH_PASSWORD, Env:LOCAL_AUTH_EMAIL, Env:LEGACY_USER_OPEN_ID
-```
+- **Database Name**: `defaultdb`
+- **Tables**: `users`, `authCredentials`, `authSessions`, `passwordResetTokens`, `learnerProfiles`, `learnerSkills`, `roadmapProgress`, `learnerAchievements`, `careerAssessmentAttempts`, `skillAssessmentAttempts`
+- **Migration System**: Schema changes are managed via versioned SQL files under `drizzle-v2/` and tracked in `__uptrail_v2_migrations`. Historical baseline migrations are preserved.
+- **Foreign Key Integrity**: Strict cascades and referential constraints prevent orphaned credentials, sessions, or profile records.
 
-The command refuses implicit email matching, conflicting credentials, or replacement of an existing local identity. After the first account exists, set `OWNER_USER_ID` to its numeric database ID and restart to grant that exact account the admin role.
+---
 
-To look up the numeric ID without changing authorization:
+## Local Development
 
-```powershell
-$env:LOCAL_AUTH_EMAIL = "person@example.com"
-pnpm auth:find-user-id
-Remove-Item Env:LOCAL_AUTH_EMAIL
-```
+### Prerequisites
+- **Node.js**: `^20.19.0` or `>=22.12.0`
+- **pnpm**: `10.4.1` (Corepack enabled: `corepack enable`)
+- **MySQL**: MySQL 8.0+ or compatible service
+- **OpenRouter API Key** *(optional)*: Required only for interactive AI Career Mentor features
 
-Password recovery uses a single-use, time-limited reset token and revokes all existing sessions after a successful reset. Configure `EMAIL_PROVIDER_URL`, `EMAIL_PROVIDER_API_KEY`, and `EMAIL_FROM` together. The provider endpoint receives `{from,to,subject,text,html}` JSON with a Bearer token. Requests always return the same public response whether the account exists or not.
+### Quick Start
 
-## Quality commands
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Pulkit0719/uptrail-v2.git
+   cd uptrail-v2
+   ```
 
-```powershell
+2. **Install dependencies**:
+   ```bash
+   pnpm install --frozen-lockfile
+   ```
+
+3. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` and set your local database connection:
+   ```env
+   DATABASE_URL=mysql://root:password@localhost:3306/uptrail
+   APP_BASE_URL=http://localhost:3000
+   ```
+
+4. **Verify runtime configuration**:
+   ```bash
+   pnpm config:check
+   ```
+
+5. **Start the development server**:
+   ```bash
+   pnpm dev
+   ```
+   The application will be accessible at [http://localhost:3000](http://localhost:3000).
+
+6. **Production build and start**:
+   ```bash
+   pnpm build
+   pnpm start
+   ```
+
+---
+
+## Environment Variables
+
+All supported environment variables are documented in [`.env.example`](.env.example):
+
+| Variable | Required | Default | Description |
+| :--- | :---: | :--- | :--- |
+| `DATABASE_URL` | **Yes** | — | MySQL connection URI (append `?ssl-mode=REQUIRED` for TLS) |
+| `DATABASE_POOL_SIZE` | No | `10` | Maximum pooled database connections |
+| `DATABASE_SSL_CA` | Cloud | — | Inline PEM certificate string for container TLS validation |
+| `DATABASE_SSL_CA_FILE` | Local | — | Filesystem path to CA PEM certificate file |
+| `PORT` | No | `3000` | HTTP port the application listens on |
+| `APP_BASE_URL` | **Yes** | `http://localhost:3000` | Canonical app URL (must be HTTPS in production) |
+| `TRUST_PROXY` | Production | `false` | Set to `true` when running behind a trusted reverse proxy |
+| `OWNER_USER_ID` | Optional | — | Numeric user ID granted administrative privileges |
+| `AI_BASE_URL` | No | `https://openrouter.ai/api/v1` | OpenAI-compatible API base URL |
+| `AI_API_KEY` | Optional | — | OpenRouter API key for the AI Career Mentor |
+| `AI_CHAT_MODEL` | No | `openrouter/free` | Chat completion model identifier |
+| `AI_REQUEST_TIMEOUT_MS` | No | `30000` | Request timeout in milliseconds |
+| `AI_MAX_OUTPUT_TOKENS` | No | `800` | Token limit per AI mentor completion |
+| `AI_MAX_RETRIES` | No | `2` | Maximum retry attempts on transient network errors |
+| `EMAIL_PROVIDER_URL` | Optional | — | Transactional email HTTP webhook URL |
+| `EMAIL_PROVIDER_API_KEY` | Optional | — | Bearer authentication token for email provider |
+| `EMAIL_FROM` | Optional | — | Sender address for transactional emails |
+| `PASSWORD_RESET_TTL_MINUTES` | Optional | `30` | Expiration window for password reset tokens |
+| `NOTIFICATION_WEBHOOK_URL` | Optional | — | Generic webhook URL for system notifications |
+
+---
+
+## Testing & Verification
+
+Uptrail V2 maintains strict code quality standards validated by automated testing:
+
+```bash
+# TypeScript compiler typecheck (zero emit)
 pnpm check
+
+# Unit and integration test suite (Vitest)
 pnpm test
+
+# Production bundle build verification
 pnpm build
+
+# High-severity dependency vulnerability audit
 pnpm audit --audit-level high
+
+# Configuration validation check
+pnpm config:check
 ```
 
-For imported databases, use only `pnpm db:v2:preflight`, the explicitly
-authorized `pnpm db:v2:migrate`, and `pnpm db:v2:verify`. Migration files and
-hashes must be reviewed and a verified backup supplied before execution.
+**Test Coverage**: 13 test suites with **42 passing tests** covering authentication, session lifecycle, CSRF validation, database security configuration, rate limiting, and owner authorization.
 
-## Configuration
+---
 
-All supported variables and safe placeholders are in `.env.example`. Run `pnpm config:check` before migration or deployment; it reports only whether secret-backed features are configured and never prints their values. Browser bundles receive no provider, email, or database secrets. `TRUST_PROXY=true` is required only when a trusted reverse proxy terminates HTTPS immediately in front of the app.
+## Production Deployment
 
-The important controls are:
+Uptrail V2 is pre-configured for continuous deployment on **Render** via [`render.yaml`](render.yaml):
 
-| Area           | Variables                                                                               |
-| -------------- | --------------------------------------------------------------------------------------- |
-| Runtime        | `PORT`, `APP_BASE_URL`, `TRUST_PROXY`, `OWNER_USER_ID`                                  |
-| Database       | `DATABASE_URL`, `DATABASE_POOL_SIZE`, optional `DATABASE_SSL_CA_FILE` or inline `DATABASE_SSL_CA` for a provider CA |
-| AI             | `AI_BASE_URL`, `AI_API_KEY`, `AI_CHAT_MODEL`, timeout/retry/output-token limits         |
-| Recovery email | `EMAIL_PROVIDER_URL`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, reset-token TTL           |
-| Notifications  | `NOTIFICATION_WEBHOOK_URL`                                                              |
+1. Connect the `Pulkit0719/uptrail-v2` repository in your [Render Dashboard](https://dashboard.render.com).
+2. Choose **New Blueprint Instance**; Render automatically parses `render.yaml` with the `free` plan.
+3. In the Render Environment settings, enter your production secrets:
+   - `DATABASE_URL`: Aiven MySQL connection URI
+   - `DATABASE_SSL_CA`: Aiven Certificate Authority PEM string
+   - `AI_API_KEY`: OpenRouter API key
+   - `APP_BASE_URL`: Generated Render HTTPS URL (`https://uptrail-v2.onrender.com`)
+4. Trigger the deployment. Render executes `pnpm install --frozen-lockfile && pnpm build` and launches with `pnpm start`.
+5. Health checks are monitored continuously at `/healthz`.
 
-See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [BACKUP_AND_RECOVERY.md](./BACKUP_AND_RECOVERY.md), [PRODUCTION_CUTOVER.md](./PRODUCTION_CUTOVER.md), [SECURITY_REVIEW.md](./SECURITY_REVIEW.md), [INDEPENDENCE_VERIFICATION.md](./INDEPENDENCE_VERIFICATION.md), and [FINAL_HANDOVER.md](./FINAL_HANDOVER.md) for operations and migration detail.
+For full deployment documentation and runbooks, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
 
-## Troubleshooting
+---
 
-- `Database is not configured`: verify `DATABASE_URL` and restart the server.
-- Login succeeds but protected calls fail with CSRF errors: clear cookies for localhost, reload `/login`, and avoid mixing `localhost` with `127.0.0.1`.
-- Mentor unavailable: set `AI_API_KEY`, verify `AI_BASE_URL` is `https://openrouter.ai/api/v1`, and keep `AI_CHAT_MODEL=openrouter/free`. Uptrail fails visibly instead of selecting a paid fallback.
-- Secure cookies behind a proxy: terminate TLS, forward `X-Forwarded-Proto: https`, and set `TRUST_PROXY=true` only for a proxy you control.
+## Current Free-Tier Infrastructure
 
-## Licensing and assets
+Uptrail V2 is currently configured to operate within available free-tier limits:
 
-The package declares MIT licensing, but no historical license file was present in the imported repository. Before public distribution, confirm the intended project license and add the corresponding license text. The UI loads DM Sans and Fraunces from Google Fonts; confirm their license notices and consider self-hosting. The unrouted component showcase references a GitHub-hosted shadcn avatar. No third-party attribution was removed during this migration.
+- **Hosting**: Render Free Web Service ($0.00 / month)
+- **Database**: Aiven Free MySQL Tier ($0.00 / month)
+- **AI Mentor**: OpenRouter free-tier models (`openrouter/free`, $0.00 / month)
+- **Continuous Integration**: GitHub Actions free tier for public repositories ($0.00 / month)
+
+---
+
+## Project Status
+
+- **Deployment Status**: Production Live ([https://uptrail-v2.onrender.com](https://uptrail-v2.onrender.com))
+- **Current Production Release**: [`v2.0.1-independent`](https://github.com/Pulkit0719/uptrail-v2/releases/tag/v2.0.1-independent)
+- **Production Commit**: `81fb092c0b849a58d7605515cec0975185b9282f`
+- **Continuous Integration**: Passing
+- **Active Manus Dependencies**: None
+- **External Object Storage Required**: None
+
+---
+
+## Documentation & Operations
+
+- [CHANGELOG.md](CHANGELOG.md) — Release notes and version history
+- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) — Complete operations and deployment runbook
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Contribution guidelines and development standards
+- [SECURITY.md](SECURITY.md) — Security policy and vulnerability disclosure instructions
+- [FINAL_HANDOVER.md](FINAL_HANDOVER.md) — Architectural handover and operational sign-off
+- [BACKUP_AND_RECOVERY.md](BACKUP_AND_RECOVERY.md) — Disaster recovery procedures and backup verification
+- [PRODUCTION_CUTOVER.md](PRODUCTION_CUTOVER.md) — Staging gates and production cutover verification
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

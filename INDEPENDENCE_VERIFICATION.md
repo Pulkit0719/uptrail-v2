@@ -1,5 +1,7 @@
 # Independence verification
 
+> **Live Production Verification**: Verified independently on Render and Aiven MySQL 8.4 for release [`v2.0.1-independent`](https://github.com/Pulkit0719/uptrail-v2/releases/tag/v2.0.1-independent) at [https://uptrail-v2.onrender.com](https://uptrail-v2.onrender.com). All tests, TLS handshakes, and identity checks passed with zero Manus or external object storage dependencies.
+
 ## Architecture
 
 ```mermaid

@@ -1,6 +1,6 @@
 # Production cutover runbook
 
-No production deployment is authorized or performed by this repository change. Use this runbook only after staging passes and the system owner explicitly approves the cutover window.
+> **Status Update**: Production cutover was successfully completed and verified for release [`v2.0.1-independent`](https://github.com/Pulkit0719/uptrail-v2/releases/tag/v2.0.1-independent) (Commit: `81fb092c0b849a58d7605515cec0975185b9282f`) deployed on Render at [https://uptrail-v2.onrender.com](https://uptrail-v2.onrender.com). The procedures below serve as the ongoing operational standard for subsequent cutover and disaster recovery events.
 
 ## Staging gate
 

@@ -1,5 +1,8 @@
 # Independent deployment guide
 
+> **Live Production Application**: [https://uptrail-v2.onrender.com](https://uptrail-v2.onrender.com)  
+> **Current Production Release**: [`v2.0.1-independent`](https://github.com/Pulkit0719/uptrail-v2/releases/tag/v2.0.1-independent) (Commit: `81fb092c0b849a58d7605515cec0975185b9282f`)
+
 ## Reference topology
 
 Run the immutable Uptrail container behind an HTTPS reverse proxy/load balancer and attach it to independently managed MySQL 8. Inject `DATABASE_URL`, `AI_*`, `EMAIL_*`, and optional webhook values from a secret manager. No object-storage service or durable upload volume is required. Send application logs to stdout/stderr and monitor `GET /healthz`.

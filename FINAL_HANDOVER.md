@@ -2,76 +2,94 @@
 
 ## 1. Executive Summary
 
-Uptrail V2 is now technically independent of Manus at all application layers:
-- **Authentication**: Independent email/password with scrypt hashing, random salts, secure HTTP-only cookies, database-backed sessions, and CSRF protection.
-- **Database**: Independent Aiven MySQL 8.4 database (`defaultdb`) with verified TLS 1.3 encryption and CA certificate verification. Supports both `DATABASE_SSL_CA_FILE` and inline `DATABASE_SSL_CA` PEM string for container deployments.
-- **Data Preservation**: 100% of authentic application tables and foreign keys preserved with zero orphan records.
-- **Migration Lineage**: Authentic historical ledger (`__drizzle_migrations`) preserved; independent v2 migration lineage (`__uptrail_v2_migrations`) applied without fabricating missing historical migrations.
-- **Storage**: External object storage completely removed (0 S3/R2/MinIO/Manus storage dependencies).
-- **AI Career Mentor**: Re-architected with OpenAI-compatible abstraction targeting OpenRouter. Strictly locked to `$0` free models (`openrouter/free`) with paid fallback prohibited in code and configuration. Graceful degradation when offline or unconfigured.
-- **Hosting & Infrastructure**: Prepared for $0 cloud deployment via `render.yaml` Blueprint on Render's free tier (no credit card required, automated Let's Encrypt HTTPS, zero-cost 750 hours/month).
+Uptrail V2 is fully independent, deployed live in production, verified, and complete. All runtime dependencies on Manus, external object storage, and proprietary services have been permanently removed:
+
+- **Live Production URL**: [https://uptrail-v2.onrender.com](https://uptrail-v2.onrender.com)
+- **Current Production Release**: `v2.0.1-independent`
+- **Current Production Commit**: `81fb092c0b849a58d7605515cec0975185b9282f`
+- **Hosting & Infrastructure**: Render Free Web Service deployed via declarative Blueprint (`render.yaml`) with automated HTTPS and healthcheck monitoring (`/healthz`).
+- **Database**: Aiven MySQL 8.4 (`defaultdb`) over verified `TLSv1.3` (`TLS_AES_256_GCM_SHA384`) with strict CA verification (`rejectUnauthorized: true`).
+- **Authentication**: Independent local authentication featuring `scrypt` password hashing, random per-user salts, database-backed sessions, SHA-256 token hashing, HttpOnly/Secure cookies, and double-submit CSRF protection.
+- **AI Career Mentor**: OpenAI-compatible provider abstraction targeting OpenRouter. Strictly configured for `$0` free models (`openrouter/free`) with hardcoded protection against paid fallbacks and graceful degradation when unconfigured.
+- **Data Preservation**: 100% authentic learner profile, skills, roadmap progress, and assessment attempt records preserved.
+- **Migration Lineage**: Authentic historical migration ledger preserved; additive `__uptrail_v2_migrations` lineage applied without fabricating missing historical files.
+- **External Object Storage**: Completely removed (zero AWS S3, Cloudflare R2, or MinIO dependencies).
+- **Status**: **COMPLETE**
 
 ---
 
-## 2. Repository & Verification Status
+## 2. Verified Repository & CI Status
 
-- **Working Branch**: `migration/manus-independence`
+- **Default Branch**: `main` (synchronized with `origin/main`)
+- **Production Tag**: `v2.0.1-independent`
+- **Historical Release Tag**: `v2.0.0-independent`
 - **TypeScript Check (`pnpm check`)**: **PASS** (0 errors)
-- **Unit / Integration Tests (`pnpm test`)**: **PASS** (13 test files, 42 tests passing)
+- **Automated Tests (`pnpm test`)**: **PASS** (13 test suites, 42 tests passing, 0 failures)
 - **Configuration Check (`pnpm config:check`)**: **PASS** (database, TLS CA, owner role, and AI free model verified)
-- **AI Verification (`pnpm ai:verify`)**: **PASS** (free-only routing enforced, safe offline fallback verified)
-- **Production Build (`pnpm build`)**: **PASS** (eager client bundle: 421 kB; server bundle: 68.3 kB)
-- **High-Severity Dependency Audit (`pnpm audit --audit-level high`)**: **PASS** (0 known vulnerabilities)
-- **CI Workflow (`.github/workflows/ci.yml`)**: Automated verification of frozen dependencies, config check, typecheck, tests, production build, audit, and clean working tree.
+- **Production Build (`pnpm build`)**: **PASS** (Vite client + esbuild Node server bundle)
+- **High-Severity Dependency Audit (`pnpm audit --audit-level high`)**: **PASS** (0 vulnerabilities)
+- **GitHub Actions CI Workflow**: **PASS** (`CI` workflow passing on `main`)
 
 ---
 
-## 3. Architecture & Service Classification
+## 3. Production Architecture & Service Classification
 
 ```text
-                     USER
-                      |
-                    HTTPS
-                      |
-                      v
-       Independent Uptrail Host (Render / Docker)
-         [React / Vite + Express / tRPC]
-                      |
-        +-------------+-------------+
-        |                           |
-        v                           v
- Independent Auth              AI Provider
- Email / Password              OpenRouter (openrouter/free)
- Scrypt + Sessions             Strict $0 Free Router
-        |                           |
-        v                           v
-  Aiven MySQL 8.4              Career Mentor
-   (TLS 1.3 + CA)             (Graceful Fallback)
+                     USER BROWSER
+                          |
+                        HTTPS
+                          |
+                          v
+         Render Web Service (Free Tier)
+          [Node.js / Express + React / Vite]
+                          |
+            +-------------+-------------+
+            |                           |
+            v                           v
+     Independent Auth              AI Provider
+     Email / Password              OpenRouter (openrouter/free)
+     Scrypt + Sessions             Strict $0 Free Tier
+            |                           |
+            v                           v
+      Aiven MySQL 8.4              Career Mentor
+     (TLS 1.3 + CA Verify)        (Context-Aware / Graceful)
 ```
 
-| Service | Classification | Provider / Implementation | Cost |
+| Component | Status | Implementation | Cost |
 | :--- | :--- | :--- | :--- |
-| **Database** | ACTIVE | Aiven MySQL 8.4 (`defaultdb`) | $0 (Free Tier / Plan) |
-| **Authentication** | ACTIVE | Independent local auth (scrypt, sessions) | $0 |
-| **AI Career Mentor** | ACTIVE / OPTIONAL | OpenRouter (`openrouter/free`) | $0 (Strictly Free) |
-| **File Storage** | UNUSED | Completely removed (no S3/R2/MinIO) | $0 |
-| **Transactional Email** | OPTIONAL | Password reset token infra ready; optional Resend | $0 |
-| **Hosting** | READY FOR DEPLOY | Render Free Blueprint (`render.yaml`) | $0 |
+| **Hosting** | LIVE | Render Free Web Service (`render.yaml`) | $0.00 / month |
+| **Database** | LIVE | Aiven MySQL 8.4 (`defaultdb`) over TLSv1.3 | $0.00 / month |
+| **Authentication** | LIVE | Independent local auth (scrypt, sessions, CSRF) | $0.00 / month |
+| **AI Career Mentor** | LIVE | OpenRouter API (`openrouter/free`) | $0.00 / month |
+| **File Storage** | RETIRED | Completely eliminated (no S3/R2/MinIO) | $0.00 / month |
+| **CI / Deployment** | LIVE | GitHub Actions + Render Git integration | $0.00 / month |
 
 ---
 
-## 4. Operational Blockers & Operator Action Items
+## 4. Preserved Production Data Integrity
 
-Only two operator actions require human console access:
+Production identity and learner data integrity were verified against live Aiven `defaultdb`:
 
-1. **Power On Aiven MySQL Service**:
-   - The Aiven MySQL database host `uptrail-v2-uptrail-v2.i.aivencloud.com` is currently in `POWEROFF` state in the Aiven Console (its public DNS record is temporarily withdrawn while stopped).
-   - **Action**: Log in to [Aiven Console](https://console.aiven.io/) and click **Power On / Start** on the `uptrail-v2` service. It will resume in ~1-2 minutes.
+- `users.id`: `1`
+- `authCredentials.userId`: `1`
+- `learnerProfiles.userId`: `1`
+- `OWNER_USER_ID`: `1` (alignment verified: `1 = 1 = 1 = 1`)
+- `learnerSkills`: `2` records (`HTML & CSS`, `JavaScript`)
+- `roadmapProgress`: `2` completed milestone records
+- `careerAssessmentAttempts`: `1` authentic historical attempt record
+- `skillAssessmentAttempts`: `1` authentic historical attempt record
+- `learnerAchievements`: `0` authentic baseline records
+- **Duplicate Records / Orphan Keys**: `0`
 
-2. **Supply Production Secrets in Render**:
-   - Create a Blueprint on Render from `Pulkit0719/uptrail-v2` using the included [`render.yaml`](render.yaml).
-   - In the Render Dashboard environment settings, supply:
-     - `DATABASE_URL`: `mysql://...`
-     - `DATABASE_SSL_CA`: The Aiven CA certificate PEM string (avoids local path issues)
-     - `AI_API_KEY`: OpenRouter API key (`sk-or-v1-...`)
-     - `APP_BASE_URL`: Generated Render URL (e.g. `https://uptrail-v2.onrender.com`)
+---
+
+## 5. Security & Infrastructure Controls
+
+- **Enforced HTTPS**: Automated TLS termination with HSTS (`Strict-Transport-Security: max-age=31536000; includeSubDomains`).
+- **Browser Protection**: Strict `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`.
+- **Session Hardening**: Opaque session tokens hashed with SHA-256 before database storage; cookies configured with `HttpOnly`, `Secure`, and `SameSite=Lax`.
+- **CSRF Defense**: Double-submit CSRF cookie + header validation required for all authenticated and state-changing procedures.
+- **Rate Limiting**: In-memory rate limiting on authentication routes to mitigate brute-force and credential-stuffing attacks.
+- **Database TLS**: Strict `TLSv1.3` connection with `rejectUnauthorized: true` and CA certificate verification using `DATABASE_SSL_CA`.
+- **Secret Isolation**: Zero server or database credentials bundled in frontend client assets; sensitive connection errors sanitized via `redactDatabaseError`.
+- **Cost Protection**: Hardcoded prohibition of paid AI fallback models.
