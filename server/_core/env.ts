@@ -70,10 +70,10 @@ export function validateConfiguration(
   if (ENV.databaseUrl) {
     try {
       const database = parseDatabaseUrl(ENV.databaseUrl);
-      getDatabaseConnectionOptions(ENV.databaseUrl, ENV.databaseSslCaFile);
-      if (database.sslMode && !ENV.databaseSslCaFile) {
+      getDatabaseConnectionOptions(ENV.databaseUrl, ENV.databaseSslCaFile, ENV.databaseSslCa);
+      if (database.sslMode && !ENV.databaseSslCaFile && !ENV.databaseSslCa) {
         warnings.push(
-          "DATABASE_SSL_CA_FILE is not configured; TLS verification will use the operating system trust store."
+          "DATABASE_SSL_CA_FILE or DATABASE_SSL_CA is not configured; TLS verification will use the operating system trust store."
         );
       }
     } catch (error) {
